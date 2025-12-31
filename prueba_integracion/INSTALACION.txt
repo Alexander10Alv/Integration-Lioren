@@ -1,0 +1,221 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                                                                              ║
+║   🔗 SISTEMA DE INTEGRACIÓN SHOPIFY - LIOREN                                ║
+║   Módulo de Prueba - Guía Rápida de Instalación                            ║
+║                                                                              ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+📋 REQUISITOS PREVIOS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✓ PHP 7.4 o superior
+✓ Extensión cURL habilitada
+✓ Extensión JSON habilitada
+✓ Servidor web (Apache/Nginx)
+✓ Acceso a internet
+
+
+🚀 INSTALACIÓN RÁPIDA (3 PASOS)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PASO 1: Subir archivos al servidor
+───────────────────────────────────
+Copia toda la carpeta "prueba_integracion" a tu servidor web.
+
+Ejemplo:
+  /var/www/html/prueba_integracion/
+  o
+  C:\xampp\htdocs\prueba_integracion\
+
+
+PASO 2: Crear carpeta de logs
+──────────────────────────────
+En Linux/Mac:
+  cd prueba_integracion
+  mkdir logs
+  chmod 755 logs
+
+En Windows:
+  Ya está creada automáticamente
+
+
+PASO 3: Acceder al sistema
+───────────────────────────
+Abre tu navegador y ve a:
+  http://localhost/prueba_integracion/dashboard.php
+
+o si estás en un servidor:
+  http://tudominio.com/prueba_integracion/dashboard.php
+
+
+✅ ¡LISTO! El sistema está instalado.
+
+
+🔑 OBTENER CREDENCIALES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+SHOPIFY:
+────────
+1. Inicia sesión en tu tienda Shopify
+2. Ve a: Settings > Apps and sales channels > Develop apps
+3. Crea una nueva app o selecciona una existente
+4. Configura permisos:
+   - read_products, write_products
+   - read_orders, write_orders
+   - read_inventory, write_inventory
+5. En "API credentials", copia:
+   - Admin API access token (empieza con "shpat_")
+   - API secret key (empieza con "shpss_")
+
+LIOREN:
+───────
+1. Inicia sesión en tu cuenta de Lioren
+2. Ve a la sección de API o Configuración
+3. Genera o copia tu API Key
+4. Guárdala de forma segura
+
+
+🌐 CONFIGURAR WEBHOOKS (DESARROLLO LOCAL)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Si estás probando en localhost, necesitas exponer tu servidor:
+
+OPCIÓN 1: ngrok (Recomendado)
+──────────────────────────────
+1. Descarga ngrok desde: https://ngrok.com/
+2. Ejecuta: ngrok http 80
+3. Copia la URL proporcionada (ej: https://abc123.ngrok.io)
+4. Úsala en el formulario: https://abc123.ngrok.io/prueba_integracion/webhook_receiver.php
+
+OPCIÓN 2: localtunnel
+─────────────────────
+1. Instala: npm install -g localtunnel
+2. Ejecuta: lt --port 80
+3. Usa la URL proporcionada
+
+
+📁 ESTRUCTURA DE ARCHIVOS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+prueba_integracion/
+├── dashboard.php              ← INICIO AQUÍ
+├── index.php                  Formulario de configuración
+├── procesar_integracion.php   Lógica de integración
+├── webhook_receiver.php       Receptor de webhooks
+├── funciones.php              Funciones auxiliares
+├── test_conexion.php          Pruebas de conexión
+├── ver_logs.php               Visor de logs
+├── install.php                Verificación del sistema
+├── config_ejemplo.php         Ejemplo de configuración
+├── README.md                  Documentación completa
+├── INSTALACION.txt            Este archivo
+└── logs/                      Logs del sistema
+
+
+🎯 FLUJO DE USO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. Abre: dashboard.php
+2. Haz clic en "Verificar Sistema" para comprobar requisitos
+3. Haz clic en "Probar Conexiones" para validar credenciales
+4. Haz clic en "Configurar Integración" para setup completo
+5. Haz clic en "Ver Logs" para monitorear eventos
+
+
+🔄 QUÉ HACE EL SISTEMA
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✓ Valida credenciales de Shopify y Lioren
+✓ Crea 4 webhooks automáticamente en Shopify:
+  - orders/create (nuevos pedidos)
+  - products/create (productos creados)
+  - products/update (productos actualizados)
+  - inventory_levels/update (inventario actualizado)
+✓ Sincroniza productos iniciales (hasta 10)
+✓ Recibe eventos de Shopify en tiempo real
+✓ Envía datos a Lioren automáticamente
+✓ Registra todo en logs detallados
+
+
+🐛 SOLUCIÓN DE PROBLEMAS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PROBLEMA: "Credenciales de Shopify inválidas"
+SOLUCIÓN:
+  - Verifica que el Access Token sea correcto
+  - Asegúrate de que la app tenga los permisos necesarios
+  - Confirma que el nombre de tienda incluya .myshopify.com
+
+PROBLEMA: "API Key de Lioren inválida"
+SOLUCIÓN:
+  - Verifica que el API Key sea correcto
+  - Confirma que tu cuenta tenga acceso a la API
+  - Revisa que no haya espacios al inicio o final
+
+PROBLEMA: "No se pueden escribir logs"
+SOLUCIÓN:
+  - Linux/Mac: chmod 755 logs
+  - Windows: Verifica permisos de la carpeta
+
+PROBLEMA: "Webhooks no se reciben"
+SOLUCIÓN:
+  - Verifica que la URL sea accesible públicamente
+  - Confirma que el servidor esté corriendo
+  - Revisa los logs de Shopify en: Settings > Notifications > Webhooks
+
+
+📊 VER LOGS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Desde el navegador:
+  http://localhost/prueba_integracion/ver_logs.php
+
+Desde terminal:
+  tail -f logs/integracion.log
+  tail -f logs/webhook_$(date +%Y-%m-%d).log
+
+
+🔒 SEGURIDAD
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+⚠️  IMPORTANTE:
+  - Este es un módulo de PRUEBA
+  - No usar en producción sin revisión de seguridad
+  - No exponer credenciales en repositorios públicos
+  - Usar HTTPS en producción
+  - Implementar autenticación adicional si es necesario
+
+
+📚 DOCUMENTACIÓN
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+README.md completo:
+  Abre: prueba_integracion/README.md
+
+APIs:
+  Shopify: https://shopify.dev/docs/api/admin-rest
+  Lioren:  https://www.lioren.cl/docs
+
+
+💡 TIPS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✓ Usa test_conexion.php antes de la integración completa
+✓ Revisa los logs regularmente en ver_logs.php
+✓ Guarda tus credenciales en config.php (copia de config_ejemplo.php)
+✓ Usa ngrok para pruebas locales de webhooks
+✓ Verifica que PHP tenga cURL habilitado
+
+
+🎉 ¡LISTO PARA EMPEZAR!
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Abre tu navegador y ve a:
+  http://localhost/prueba_integracion/dashboard.php
+
+¡Buena suerte con tu integración! 🚀
+
+
+═══════════════════════════════════════════════════════════════════════════════
+Sistema de Integración Shopify-Lioren v1.0 | Módulo de Prueba
+═══════════════════════════════════════════════════════════════════════════════

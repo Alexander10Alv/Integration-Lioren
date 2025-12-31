@@ -1,0 +1,21 @@
+# Ignorar archivo de configuración con credenciales
+config.php
+
+# Ignorar logs
+logs/
+*.log
+
+# Ignorar archivos temporales
+*.tmp
+*.temp
+
+# Ignorar archivos del sistema
+.DS_Store
+Thumbs.db
+
+# Ignorar archivos de IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~

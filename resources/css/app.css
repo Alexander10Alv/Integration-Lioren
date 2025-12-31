@@ -1,0 +1,19 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+    /* Custom checkbox styling */
+    input[type="checkbox"]:checked {
+        background-color: #eab308;
+        border-color: #eab308;
+    }
+    
+    input[type="checkbox"]:hover {
+        border-color: #facc15;
+    }
+    
+    input[type="checkbox"]:focus {
+        --tw-ring-color: rgba(234, 179, 8, 0.5);
+    }
+}
