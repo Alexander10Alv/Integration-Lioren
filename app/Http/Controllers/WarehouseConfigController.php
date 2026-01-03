@@ -25,7 +25,7 @@ class WarehouseConfigController extends Controller
             // Obtener bodegas de Lioren
             $liorenBodegas = $inventoryService->getLiorenBodegas();
 
-            return view('integracion.warehouse-config', compact('config', 'shopifyLocations', 'liorenBodegas'));
+            return view('integracion.bodegas', compact('config', 'shopifyLocations', 'liorenBodegas'));
 
         } catch (\Exception $e) {
             Log::error("Error cargando configuración de bodegas: " . $e->getMessage());
@@ -35,11 +35,12 @@ class WarehouseConfigController extends Controller
     }
 
     /**
-     * Configurar modo simple
+     * Configurar modo (simple o avanzado)
      */
-    public function configureSimple(Request $request)
+    public function setMode(Request $request)
     {
         $request->validate([
+            'mode' => 'required|in:simple,advanced',
             'bodega_id' => 'required|integer',
             'bodega_name' => 'required|string',
         ]);
@@ -47,53 +48,32 @@ class WarehouseConfigController extends Controller
         try {
             $inventoryService = new InventorySyncService(auth()->id());
 
-            $inventoryService->configureSimpleMode(
-                $request->bodega_id,
-                $request->bodega_name
-            );
+            if ($request->mode === 'simple') {
+                $inventoryService->configureSimpleMode(
+                    $request->bodega_id,
+                    $request->bodega_name
+                );
+            } else {
+                $inventoryService->configureAdvancedMode(
+                    $request->bodega_id,
+                    $request->bodega_name
+                );
+            }
 
-            return redirect()->route('warehouse.config')
-                ->with('success', '✅ Modo simple configurado correctamente');
+            return redirect()->route('integracion.bodegas')
+                ->with('success', '✅ Configuración guardada correctamente');
 
         } catch (\Exception $e) {
-            Log::error("Error configurando modo simple: " . $e->getMessage());
+            Log::error("Error configurando modo: " . $e->getMessage());
             
             return back()->with('error', 'Error: ' . $e->getMessage());
         }
     }
 
     /**
-     * Configurar modo avanzado
+     * Guardar mapeo de location a bodega
      */
-    public function configureAdvanced(Request $request)
-    {
-        $request->validate([
-            'default_bodega_id' => 'required|integer',
-            'default_bodega_name' => 'required|string',
-        ]);
-
-        try {
-            $inventoryService = new InventorySyncService(auth()->id());
-
-            $inventoryService->configureAdvancedMode(
-                $request->default_bodega_id,
-                $request->default_bodega_name
-            );
-
-            return redirect()->route('warehouse.config')
-                ->with('success', '✅ Modo avanzado configurado correctamente');
-
-        } catch (\Exception $e) {
-            Log::error("Error configurando modo avanzado: " . $e->getMessage());
-            
-            return back()->with('error', 'Error: ' . $e->getMessage());
-        }
-    }
-
-    /**
-     * Crear mapeo de location a bodega
-     */
-    public function createMapping(Request $request)
+    public function saveMapping(Request $request)
     {
         $request->validate([
             'location_id' => 'required|string',
@@ -112,11 +92,11 @@ class WarehouseConfigController extends Controller
                 $request->bodega_name
             );
 
-            return redirect()->route('warehouse.config')
-                ->with('success', '✅ Mapeo creado correctamente');
+            return redirect()->route('integracion.bodegas')
+                ->with('success', '✅ Mapeo guardado correctamente');
 
         } catch (\Exception $e) {
-            Log::error("Error creando mapeo: " . $e->getMessage());
+            Log::error("Error guardando mapeo: " . $e->getMessage());
             
             return back()->with('error', 'Error: ' . $e->getMessage());
         }
@@ -132,7 +112,7 @@ class WarehouseConfigController extends Controller
 
             $inventoryService->deleteLocationMapping($locationId);
 
-            return redirect()->route('warehouse.config')
+            return redirect()->route('integracion.bodegas')
                 ->with('success', '✅ Mapeo eliminado correctamente');
 
         } catch (\Exception $e) {
@@ -161,6 +141,148 @@ class WarehouseConfigController extends Controller
             return response()->json([
                 'success' => false,
                 'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Obtener configuración actual (AJAX)
+     */
+    public function getConfig()
+    {
+        try {
+            $inventoryService = new InventorySyncService(auth()->id());
+            $config = $inventoryService->getCurrentConfig();
+
+            return response()->json($config);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Obtener bodegas de Lioren (AJAX)
+     */
+    public function getLiorenBodegas()
+    {
+        try {
+            $inventoryService = new InventorySyncService(auth()->id());
+            $bodegas = $inventoryService->getLiorenBodegas();
+
+            return response()->json([
+                'success' => true,
+                'bodegas' => $bodegas,
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Obtener locations de Shopify (AJAX)
+     */
+    public function getShopifyLocations()
+    {
+        try {
+            $inventoryService = new InventorySyncService(auth()->id());
+            $locations = $inventoryService->getShopifyLocations();
+
+            return response()->json([
+                'success' => true,
+                'locations' => $locations,
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Configurar modo simple (AJAX)
+     */
+    public function configureSimple(Request $request)
+    {
+        $request->validate([
+            'bodega_id' => 'required',
+            'bodega_name' => 'required|string',
+        ]);
+
+        try {
+            $inventoryService = new InventorySyncService(auth()->id());
+
+            $inventoryService->configureSimpleMode(
+                $request->bodega_id,
+                $request->bodega_name
+            );
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Configuración guardada correctamente',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error("Error configurando modo simple: " . $e->getMessage());
+            
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Configurar modo avanzado (AJAX)
+     */
+    public function configureAdvanced(Request $request)
+    {
+        $request->validate([
+            'default_bodega_id' => 'required',
+            'default_bodega_name' => 'required|string',
+            'mappings' => 'nullable|array',
+        ]);
+
+        try {
+            $inventoryService = new InventorySyncService(auth()->id());
+
+            // Configurar modo avanzado
+            $inventoryService->configureAdvancedMode(
+                $request->default_bodega_id,
+                $request->default_bodega_name
+            );
+
+            // Guardar mapeos si existen
+            if ($request->mappings) {
+                foreach ($request->mappings as $locationId => $mapping) {
+                    $inventoryService->createLocationMapping(
+                        $locationId,
+                        $mapping['location_name'],
+                        $mapping['bodega_id'],
+                        $mapping['bodega_name']
+                    );
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Configuración guardada correctamente',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error("Error configurando modo avanzado: " . $e->getMessage());
+            
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
             ], 500);
         }
     }

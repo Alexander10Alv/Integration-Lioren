@@ -375,49 +375,44 @@
                 </div>
             </div>
 
-            <!-- Paso 2: Formulario -->
+            <!-- Paso 2: Pago (Flow) -->
             <div id="wizardStep2" class="wizard-step" style="display: none;">
                 <div style="background: linear-gradient(135deg, #FFD54F 0%, #FFCA28 100%); padding: 2rem; border-radius: 1rem 1rem 0 0; text-align: center;">
-                    <i class="fas fa-file-alt" style="font-size: 3rem; color: #1a1a1a; margin-bottom: 1rem;"></i>
-                    <h3 style="font-size: 1.5rem; font-weight: 700; color: #1a1a1a;">Información de la Solicitud</h3>
+                    <i class="fas fa-credit-card" style="font-size: 3rem; color: #1a1a1a; margin-bottom: 1rem;"></i>
+                    <h3 style="font-size: 1.5rem; font-weight: 700; color: #1a1a1a;">Proceder al Pago</h3>
                 </div>
-                <form id="wizardForm" style="padding: 2rem; max-height: 60vh; overflow-y: auto;">
-                    <div style="margin-bottom: 1rem;">
-                        <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #374151; margin-bottom: 0.5rem;">Tienda Shopify *</label>
-                        <input type="text" id="tienda_shopify" required placeholder="tu-tienda.myshopify.com" style="width: 100%; padding: 0.75rem; border: 2px solid #d1d5db; border-radius: 0.5rem;">
-                        <p style="font-size: 0.75rem; color: #6b7280; margin-top: 0.25rem;">Formato: tu-tienda.myshopify.com</p>
+                <div style="padding: 2rem;">
+                    <!-- Resumen del Plan -->
+                    <div style="background: #f9fafb; padding: 1.5rem; border-radius: 0.75rem; margin-bottom: 2rem; border-left: 4px solid #FFC107;">
+                        <h4 style="font-size: 1rem; font-weight: 700; color: #111827; margin-bottom: 1rem;">Resumen de tu compra</h4>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                            <span style="color: #6b7280;">Plan:</span>
+                            <span id="wizardResumenPlan" style="font-weight: 600; color: #111827;"></span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                            <span style="color: #6b7280;">Empresa:</span>
+                            <span id="wizardResumenEmpresa" style="font-weight: 600; color: #111827;"></span>
+                        </div>
+                        <div style="border-top: 2px solid #e5e7eb; margin: 1rem 0; padding-top: 1rem;">
+                            <div style="display: flex; justify-content: space-between;">
+                                <span style="font-size: 1.125rem; font-weight: 700; color: #111827;">Total:</span>
+                                <span id="wizardResumenPrecio" style="font-size: 1.5rem; font-weight: 700; color: #FFC107;"></span>
+                            </div>
+                        </div>
                     </div>
-                    <div style="margin-bottom: 1rem;">
-                        <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #374151; margin-bottom: 0.5rem;">Email *</label>
-                        <input type="email" id="email" required value="{{ auth()->user()->email }}" style="width: 100%; padding: 0.75rem; border: 2px solid #d1d5db; border-radius: 0.5rem;">
+
+                    <!-- Información de Pago -->
+                    <div style="background: #dbeafe; padding: 1.5rem; border-radius: 0.75rem; margin-bottom: 2rem; border-left: 4px solid #3b82f6;">
+                        <p style="color: #1e40af; line-height: 1.6; margin: 0;">
+                            <i class="fas fa-shield-alt"></i> Serás redirigido a Flow para completar tu pago de forma segura. Una vez confirmado el pago, podrás configurar tu integración.
+                        </p>
                     </div>
-                    <div style="margin-bottom: 1rem;">
-                        <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #374151; margin-bottom: 0.5rem;">Teléfono</label>
-                        <input type="text" id="telefono" placeholder="+56 9 1234 5678" style="width: 100%; padding: 0.75rem; border: 2px solid #d1d5db; border-radius: 0.5rem;">
+
+                    <!-- Botones -->
+                    <div style="display: flex; gap: 1rem;">
+                        <button onclick="atrasWizard()" style="flex: 1; padding: 0.75rem; background: #f3f4f6; color: #374151; font-weight: 600; border: none; border-radius: 0.5rem; cursor: pointer;"><i class="fas fa-arrow-left"></i> Atrás</button>
+                        <button onclick="procesarPago()" style="flex: 2; padding: 0.75rem; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; font-weight: 700; border: none; border-radius: 0.5rem; cursor: pointer; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);"><i class="fas fa-lock"></i> Pagar con Flow</button>
                     </div>
-                    <div style="margin-bottom: 1rem;">
-                        <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #374151; margin-bottom: 0.5rem;">Access Token *</label>
-                        <input type="text" id="access_token" required placeholder="shpat_xxxxxxxxxxxxx" style="width: 100%; padding: 0.75rem; border: 2px solid #d1d5db; border-radius: 0.5rem; font-family: monospace;">
-                        <p style="font-size: 0.75rem; color: #6b7280; margin-top: 0.25rem;">Token de API de tu app personalizada de Shopify</p>
-                    </div>
-                    <div style="margin-bottom: 1rem;">
-                        <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #374151; margin-bottom: 0.5rem;">API Secret *</label>
-                        <input type="text" id="api_secret" required placeholder="shpss_xxxxxxxxxxxxx" style="width: 100%; padding: 0.75rem; border: 2px solid #d1d5db; border-radius: 0.5rem; font-family: monospace;">
-                        <p style="font-size: 0.75rem; color: #6b7280; margin-top: 0.25rem;">Secret key para validar webhooks de Shopify</p>
-                    </div>
-                    <div style="margin-bottom: 1rem;">
-                        <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #374151; margin-bottom: 0.5rem;">API Key Lioren *</label>
-                        <input type="text" id="api_key" required placeholder="tu_api_key_de_lioren" style="width: 100%; padding: 0.75rem; border: 2px solid #d1d5db; border-radius: 0.5rem; font-family: monospace;">
-                        <p style="font-size: 0.75rem; color: #6b7280; margin-top: 0.25rem;">Token de autenticación de la API de Lioren</p>
-                    </div>
-                    <div style="margin-bottom: 1rem;">
-                        <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #374151; margin-bottom: 0.5rem;">¿Por qué te interesa este plan?</label>
-                        <textarea id="descripcion" rows="3" placeholder="Cuéntanos brevemente..." style="width: 100%; padding: 0.75rem; border: 2px solid #d1d5db; border-radius: 0.5rem; resize: vertical;"></textarea>
-                    </div>
-                </form>
-                <div style="padding: 0 2rem 2rem 2rem; display: flex; gap: 1rem;">
-                    <button onclick="atrasWizard()" style="flex: 1; padding: 0.75rem; background: #f3f4f6; color: #374151; font-weight: 600; border: none; border-radius: 0.5rem; cursor: pointer;"><i class="fas fa-arrow-left"></i> Atrás</button>
-                    <button onclick="enviarSolicitud()" style="flex: 1; padding: 0.75rem; background: linear-gradient(135deg, #FFC107 0%, #FFB300 100%); color: #000; font-weight: 700; border: none; border-radius: 0.5rem; cursor: pointer;"><i class="fas fa-paper-plane"></i> Enviar Solicitud</button>
                 </div>
             </div>
 
@@ -427,12 +422,17 @@
                     <div style="background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); width: 100px; height: 100px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 2rem;">
                         <i class="fas fa-check" style="font-size: 3rem; color: #065f46;"></i>
                     </div>
-                    <h3 style="font-size: 2rem; font-weight: 700; color: #111827; margin-bottom: 1rem;">¡Solicitud Enviada con Éxito!</h3>
+                    <h3 style="font-size: 2rem; font-weight: 700; color: #111827; margin-bottom: 1rem;">¡Pago Confirmado!</h3>
                     <p style="font-size: 1.125rem; color: #6b7280; line-height: 1.6; margin-bottom: 2rem;">
-                        Hemos recibido tu pedido para el <strong id="wizardFinalPlan"></strong>. Te notificaremos en cuanto sea aprobado para proceder con el siguiente paso.
+                        Tu pago ha sido procesado exitosamente. Ahora puedes configurar tu integración en la sección <strong>"Planes Activos"</strong>.
                     </p>
+                    <div style="background: #fef3c7; padding: 1rem; border-radius: 0.5rem; margin-bottom: 2rem; border-left: 4px solid #f59e0b;">
+                        <p style="color: #92400e; margin: 0;">
+                            <i class="fas fa-info-circle"></i> Te enviaremos un correo con los próximos pasos para completar la configuración de tu tienda.
+                        </p>
+                    </div>
                     <button onclick="cerrarWizard()" style="padding: 1rem 2rem; background: linear-gradient(135deg, #FFC107 0%, #FFB300 100%); color: #000; font-weight: 700; border: none; border-radius: 0.75rem; cursor: pointer; font-size: 1rem; text-transform: uppercase;">
-                        <i class="fas fa-check"></i> Finalizar
+                        <i class="fas fa-check"></i> Ir a Planes Activos
                     </button>
                 </div>
             </div>
@@ -510,6 +510,8 @@
 
         function solicitarPlan(planId, planNombre, empresa) {
             planIdSeleccionado = planId;
+            planNombreTemp = planNombre;
+            empresaTemp = empresa;
             document.getElementById('solicitudPlanNombre').textContent = planNombre;
             document.getElementById('solicitudEmpresa').textContent = 'Empresa: ' + empresa;
             document.getElementById('solicitudModal').style.display = 'block';
@@ -531,10 +533,16 @@
 
         function abrirWizard() {
             wizardStep = 1;
+            
+            // Buscar el precio del plan
+            const planes = @json($planes);
+            const planSeleccionado = planes.find(p => p.id === planIdSeleccionado);
+            
             wizardData = {
                 plan_id: planIdSeleccionado,
                 plan_nombre: planNombreTemp,
-                empresa: empresaTemp
+                empresa: empresaTemp,
+                precio: planSeleccionado ? planSeleccionado.precio : 0
             };
             document.getElementById('wizardModal').style.display = 'block';
             mostrarPasoWizard(1);
@@ -547,6 +555,10 @@
             if (paso === 1) {
                 document.getElementById('wizardPlanNombre').textContent = wizardData.plan_nombre;
                 document.getElementById('wizardEmpresa').textContent = wizardData.empresa;
+            } else if (paso === 2) {
+                document.getElementById('wizardResumenPlan').textContent = wizardData.plan_nombre;
+                document.getElementById('wizardResumenEmpresa').textContent = wizardData.empresa;
+                document.getElementById('wizardResumenPrecio').textContent = '$' + wizardData.precio + ' USD/mes';
             }
         }
 
@@ -564,37 +576,21 @@
             }
         }
 
-        let enviandoSolicitud = false;
+        let procesandoPago = false;
 
-        function enviarSolicitud() {
-            if (enviandoSolicitud) return;
+        function procesarPago() {
+            if (procesandoPago) return;
             
-            // Validar campos requeridos
-            const tienda = document.getElementById('tienda_shopify').value.trim();
-            const email = document.getElementById('email').value.trim();
-            const accessToken = document.getElementById('access_token').value.trim();
-            const apiSecret = document.getElementById('api_secret').value.trim();
-            const apiKey = document.getElementById('api_key').value.trim();
-            
-            if (!tienda || !email || !accessToken || !apiSecret || !apiKey) {
-                alert('Por favor completa todos los campos obligatorios (*)');
-                return;
-            }
-            
-            enviandoSolicitud = true;
+            procesandoPago = true;
             const btn = event.target;
             btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...';
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando...';
+            
+            // TODO: Aquí irá la integración con Flow
+            // Por ahora, creamos la solicitud y simulamos el pago
             
             const formData = {
                 plan_id: wizardData.plan_id,
-                tienda_shopify: tienda,
-                descripcion: document.getElementById('descripcion').value.trim(),
-                telefono: document.getElementById('telefono').value.trim(),
-                email: email,
-                access_token: accessToken,
-                api_secret: apiSecret,
-                api_key: apiKey,
             };
 
             fetch('{{ route("cliente.solicitudes.store") }}', {
@@ -614,16 +610,19 @@
             })
             .then(data => {
                 if (data.success) {
-                    document.getElementById('wizardFinalPlan').textContent = wizardData.plan_nombre;
-                    wizardStep = 3;
-                    mostrarPasoWizard(3);
+                    // TODO: Aquí redirigir a Flow
+                    // Por ahora, simulamos éxito
+                    setTimeout(() => {
+                        wizardStep = 3;
+                        mostrarPasoWizard(3);
+                    }, 1000);
                 } else {
-                    alert('Error: ' + (data.message || 'No se pudo enviar la solicitud'));
+                    alert('Error: ' + (data.message || 'No se pudo procesar el pago'));
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
-                let mensaje = 'Error al enviar solicitud';
+                let mensaje = 'Error al procesar el pago';
                 if (error.errors) {
                     mensaje = Object.values(error.errors).flat().join('\n');
                 } else if (error.message) {
@@ -632,17 +631,17 @@
                 alert(mensaje);
             })
             .finally(() => {
-                enviandoSolicitud = false;
+                procesandoPago = false;
                 btn.disabled = false;
-                btn.innerHTML = '<i class="fas fa-paper-plane"></i> Enviar Solicitud';
+                btn.innerHTML = '<i class="fas fa-lock"></i> Pagar con Flow';
             });
         }
 
         function cerrarWizard() {
             document.getElementById('wizardModal').style.display = 'none';
             wizardData = {};
-            document.getElementById('wizardForm').reset();
-            location.reload();
+            // Redirigir a planes activos
+            window.location.href = '{{ route("cliente.planes-activos") }}';
         }
 
         // Cerrar modal al hacer clic fuera

@@ -21,6 +21,50 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ---
 
+## [2.1.0] - 2025-12-31
+
+### 🔄 Nueva Funcionalidad - Notas de Crédito Automáticas
+
+#### Added
+- **Sistema de Notas de Crédito Automáticas**
+  - Checkbox en configuración de integración para activar/desactivar
+  - Webhooks automáticos para `orders/cancelled` y `refunds/create`
+  - Emisión automática de Notas de Crédito (tipodoc: 61) en Lioren
+  - Búsqueda automática del documento original (boleta o factura)
+  - Referencia correcta al documento original según normativa SII
+  
+- **Modelo y Migración**
+  - Modelo `NotaCredito` con todos los campos necesarios
+  - Tabla `notas_credito` en base de datos
+  - Campo `notas_credito_enabled` en `integracion_configs`
+  - Almacenamiento de PDF y XML en base64
+
+- **Controlador y Rutas**
+  - Métodos `procesarCancelacion()` y `procesarReembolso()`
+  - Método `emitirNotaCredito()` para emisión en Lioren
+  - Rutas para listar, ver PDF y descargar XML
+  - Integración con webhook receiver existente
+
+- **Vistas**
+  - Vista de listado de Notas de Crédito (`/notas-credito`)
+  - Tarjeta en dashboard de integración
+  - Descarga de PDF y XML desde la interfaz
+  - Visualización de errores si la emisión falla
+
+- **Documentación**
+  - Archivo `DOCUMENTACION_NOTAS_CREDITO.md` completo
+  - Actualización de `database_facturacion.sql`
+  - Ejemplos de uso y flujo completo
+
+#### Technical Details
+- Cálculo automático de monto neto (sin IVA)
+- Validación de existencia de documento original
+- Actualización opcional de notas en Shopify
+- Manejo de errores y logging detallado
+- Soporte para cancelaciones y reembolsos
+
+---
+
 ## [2.0.0] - 2024-12-11
 
 ### 🎉 Major Release - Sistema de Roles y Gestión de Bodegas

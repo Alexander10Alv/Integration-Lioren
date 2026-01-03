@@ -40,8 +40,12 @@ class ClienteController extends Controller
      */
     public function planesActivos()
     {
-        // TODO: Implementar listado de planes activos del cliente
-        return view('cliente.planes-activos');
+        $planesActivos = \App\Models\Solicitud::with(['plan.empresa'])
+            ->where('cliente_id', auth()->id())
+            ->where('estado', 'activa')
+            ->get();
+        
+        return view('cliente.planes-activos', compact('planesActivos'));
     }
 
     /**

@@ -17,15 +17,17 @@ return new class extends Migration
             $table->id();
             $table->foreignId('cliente_id')->constrained('users')->onDelete('cascade');
             $table->foreignId('plan_id')->constrained('planes')->onDelete('cascade');
-            $table->string('tienda_shopify');
+            $table->string('tienda_shopify')->nullable();
             $table->text('descripcion')->nullable();
             $table->string('telefono')->nullable();
             $table->string('email');
-            $table->string('access_token');
-            $table->string('api_secret');
-            $table->string('api_key');
-            $table->enum('estado', ['pendiente', 'aprobada', 'rechazada', 'en_proceso'])->default('pendiente');
+            $table->string('access_token')->nullable();
+            $table->string('api_secret')->nullable();
+            $table->string('api_key')->nullable();
+            $table->enum('estado', ['pendiente', 'aprobada', 'rechazada', 'en_proceso', 'activa'])->default('pendiente');
             $table->text('notas_admin')->nullable();
+            $table->timestamp('fecha_pago')->nullable();
+            $table->string('flow_token')->nullable();
             $table->timestamps();
         });
     }

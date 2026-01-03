@@ -18,12 +18,19 @@ class IntegracionConfig extends Model
         'shopify_secret',
         'lioren_api_key',
         'facturacion_enabled',
+        'shopify_visibility_enabled',
+        'notas_credito_enabled',
+        'order_limit_enabled',
+        'monthly_order_limit',
         'activo',
         'ultima_sincronizacion',
     ];
 
     protected $casts = [
         'facturacion_enabled' => 'boolean',
+        'shopify_visibility_enabled' => 'boolean',
+        'notas_credito_enabled' => 'boolean',
+        'order_limit_enabled' => 'boolean',
         'activo' => 'boolean',
         'ultima_sincronizacion' => 'datetime',
     ];

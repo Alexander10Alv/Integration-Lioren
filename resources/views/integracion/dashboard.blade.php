@@ -24,7 +24,7 @@
             </div>
 
             <!-- Cards Grid -->
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 mb-8">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
                 
                 <!-- Estado de Integración -->
                 <a href="{{ route('integracion.estado') }}" class="group block">
@@ -64,6 +64,29 @@
                             </p>
                             <div class="mt-4 flex items-center text-purple-600 font-semibold">
                                 <span>Comenzar</span>
+                                <svg class="w-5 h-5 ml-2 group-hover:translate-x-2 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"></path>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+                </a>
+
+                <!-- Configurar Bodegas -->
+                <a href="{{ route('integracion.bodegas') }}" class="group block">
+                    <div class="relative bg-white overflow-hidden shadow-xl sm:rounded-2xl transition-all duration-300 transform group-hover:-translate-y-2 group-hover:shadow-2xl border-2 border-orange-500">
+                        <div class="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-orange-400 to-orange-600 opacity-10 rounded-bl-full"></div>
+                        <div class="p-8 relative">
+                            <div class="flex items-center justify-between mb-4">
+                                <div class="text-6xl">🏭</div>
+                                <div class="px-4 py-2 bg-orange-100 text-orange-700 text-xs font-bold rounded-full">BODEGAS</div>
+                            </div>
+                            <h3 class="text-2xl font-bold mb-3 text-gray-800 group-hover:text-orange-600 transition-colors">Configurar Bodegas</h3>
+                            <p class="text-gray-600 leading-relaxed">
+                                Mapea las ubicaciones de Shopify con las bodegas de Lioren para sincronización de inventario
+                            </p>
+                            <div class="mt-4 flex items-center text-orange-600 font-semibold">
+                                <span>Configurar</span>
                                 <svg class="w-5 h-5 ml-2 group-hover:translate-x-2 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"></path>
                                 </svg>
@@ -133,6 +156,29 @@
                             </p>
                             <div class="mt-4 flex items-center text-yellow-600 font-semibold">
                                 <span>Emitir ahora</span>
+                                <svg class="w-5 h-5 ml-2 group-hover:translate-x-2 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"></path>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+                </a>
+
+                <!-- Notas de Crédito -->
+                <a href="{{ route('notas-credito.index') }}" class="group block">
+                    <div class="relative bg-white overflow-hidden shadow-xl sm:rounded-2xl transition-all duration-300 transform group-hover:-translate-y-2 group-hover:shadow-2xl border-2 border-red-500">
+                        <div class="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-red-400 to-red-600 opacity-10 rounded-bl-full"></div>
+                        <div class="p-8 relative">
+                            <div class="flex items-center justify-between mb-4">
+                                <div class="text-6xl">🔄</div>
+                                <div class="px-4 py-2 bg-red-100 text-red-700 text-xs font-bold rounded-full">AUTOMÁTICO</div>
+                            </div>
+                            <h3 class="text-2xl font-bold mb-3 text-gray-800 group-hover:text-red-600 transition-colors">Notas de Crédito</h3>
+                            <p class="text-gray-600 leading-relaxed">
+                                Visualiza las notas de crédito emitidas automáticamente por cancelaciones y reembolsos
+                            </p>
+                            <div class="mt-4 flex items-center text-red-600 font-semibold">
+                                <span>Ver notas</span>
                                 <svg class="w-5 h-5 ml-2 group-hover:translate-x-2 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"></path>
                                 </svg>

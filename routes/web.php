@@ -54,6 +54,17 @@ Route::middleware(['auth', 'role:admin'])->prefix('integracion')->name('integrac
     Route::get('/estado', [App\Http\Controllers\IntegracionController::class, 'estado'])->name('estado');
     Route::get('/resetear', [App\Http\Controllers\IntegracionController::class, 'confirmarReset'])->name('resetear');
     Route::delete('/resetear', [App\Http\Controllers\IntegracionController::class, 'resetearIntegracion'])->name('resetear.ejecutar');
+    
+    // Configuración de Bodegas
+    Route::get('/bodegas', [App\Http\Controllers\WarehouseConfigController::class, 'index'])->name('bodegas');
+    Route::get('/bodegas/config', [App\Http\Controllers\WarehouseConfigController::class, 'getConfig'])->name('bodegas.config');
+    Route::get('/bodegas/lioren', [App\Http\Controllers\WarehouseConfigController::class, 'getLiorenBodegas'])->name('bodegas.lioren');
+    Route::get('/bodegas/shopify-locations', [App\Http\Controllers\WarehouseConfigController::class, 'getShopifyLocations'])->name('bodegas.shopify');
+    Route::post('/bodegas/configure-simple', [App\Http\Controllers\WarehouseConfigController::class, 'configureSimple'])->name('bodegas.configure-simple');
+    Route::post('/bodegas/configure-advanced', [App\Http\Controllers\WarehouseConfigController::class, 'configureAdvanced'])->name('bodegas.configure-advanced');
+    Route::post('/bodegas/modo', [App\Http\Controllers\WarehouseConfigController::class, 'setMode'])->name('bodegas.modo');
+    Route::post('/bodegas/mapeo', [App\Http\Controllers\WarehouseConfigController::class, 'saveMapping'])->name('bodegas.mapeo');
+    Route::delete('/bodegas/mapeo/{locationId}', [App\Http\Controllers\WarehouseConfigController::class, 'deleteMapping'])->name('bodegas.delete');
 });
 
 // Boletas Routes - SOLO ADMIN
@@ -61,6 +72,13 @@ Route::middleware(['auth', 'role:admin'])->prefix('boletas')->name('boletas.')->
     Route::get('/', [App\Http\Controllers\IntegracionController::class, 'boletas'])->name('index');
     Route::get('/emitir', [App\Http\Controllers\IntegracionController::class, 'boletasForm'])->name('form');
     Route::post('/emitir', [App\Http\Controllers\IntegracionController::class, 'emitirBoleta'])->name('emitir');
+});
+
+// Notas de Crédito Routes - SOLO ADMIN
+Route::middleware(['auth', 'role:admin'])->prefix('notas-credito')->name('notas-credito.')->group(function () {
+    Route::get('/', [App\Http\Controllers\IntegracionController::class, 'notasCredito'])->name('index');
+    Route::get('/{id}/pdf', [App\Http\Controllers\IntegracionController::class, 'notaCreditoPdf'])->name('pdf');
+    Route::get('/{id}/xml', [App\Http\Controllers\IntegracionController::class, 'notaCreditoXml'])->name('xml');
 });
 
 // Configuración de Bodegas/Locations - SOLO ADMIN
@@ -93,6 +111,8 @@ Route::middleware(['auth', 'role:cliente'])->prefix('cliente')->name('cliente.')
     
     // Solicitudes
     Route::post('/solicitudes', [App\Http\Controllers\SolicitudController::class, 'store'])->name('solicitudes.store');
+    Route::get('/solicitudes/{solicitud}/config', [App\Http\Controllers\SolicitudController::class, 'getConfig'])->name('solicitudes.getConfig');
+    Route::post('/solicitudes/{solicitud}/config', [App\Http\Controllers\SolicitudController::class, 'updateConfig'])->name('solicitudes.updateConfig');
 });
 
 // Rutas de Chat (compartidas entre admin y cliente)

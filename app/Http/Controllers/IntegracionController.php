@@ -39,9 +39,18 @@ class IntegracionController extends Controller
             'lioren_api_key' => 'required|string|min:10',
             'webhook_url' => 'required|url',
             'facturacion_enabled' => 'nullable|boolean',
+            'shopify_visibility_enabled' => 'nullable|boolean',
+            'notas_credito_enabled' => 'nullable|boolean',
+            'no_order_limit' => 'nullable|boolean',
+            'monthly_order_limit' => 'nullable|integer|min:1',
         ]);
 
         $facturacionEnabled = $request->has('facturacion_enabled') && $request->facturacion_enabled == '1';
+        $shopifyVisibilityEnabled = $request->has('shopify_visibility_enabled') && $request->shopify_visibility_enabled == '1';
+        $notasCreditoEnabled = $request->has('notas_credito_enabled') && $request->notas_credito_enabled == '1';
+        $noOrderLimit = $request->has('no_order_limit') && $request->no_order_limit == '1';
+        $orderLimitEnabled = !$noOrderLimit;
+        $monthlyOrderLimit = $orderLimitEnabled ? $request->monthly_order_limit : null;
 
         $data = [
             'shopify_tienda' => $request->shopify_tienda,
@@ -50,6 +59,8 @@ class IntegracionController extends Controller
             'lioren_api_key' => $request->lioren_api_key,
             'webhook_url' => $request->webhook_url,
             'facturacion_enabled' => $facturacionEnabled,
+            'shopify_visibility_enabled' => $shopifyVisibilityEnabled,
+            'notas_credito_enabled' => $notasCreditoEnabled,
         ];
 
         // Guardar en sesión (temporal para la vista)
@@ -64,12 +75,16 @@ class IntegracionController extends Controller
                 'shopify_secret' => $request->shopify_secret,
                 'lioren_api_key' => $request->lioren_api_key,
                 'facturacion_enabled' => $facturacionEnabled,
+                'shopify_visibility_enabled' => $shopifyVisibilityEnabled,
+                'notas_credito_enabled' => $notasCreditoEnabled,
+                'order_limit_enabled' => $orderLimitEnabled,
+                'monthly_order_limit' => $monthlyOrderLimit,
                 'activo' => true,
                 'ultima_sincronizacion' => now(),
             ]
         );
 
-        Log::info("Configuración guardada - Facturación: " . ($facturacionEnabled ? 'HABILITADA' : 'DESHABILITADA'));
+        Log::info("Configuración guardada - Facturación: " . ($facturacionEnabled ? 'HABILITADA' : 'DESHABILITADA') . " - Visibilidad Shopify: " . ($shopifyVisibilityEnabled ? 'HABILITADA' : 'DESHABILITADA') . " - Notas de Crédito: " . ($notasCreditoEnabled ? 'HABILITADA' : 'DESHABILITADA') . " - Límite pedidos: " . ($orderLimitEnabled ? $monthlyOrderLimit . ' mensuales' : 'SIN LÍMITE'));
 
         // Validar Shopify
         $shopify_valid = $this->validarShopify($data['shopify_tienda'], $data['shopify_token']);
@@ -227,12 +242,20 @@ class IntegracionController extends Controller
      */
     private function crearWebhooks($tienda, $token, $webhook_url)
     {
+        $config = \App\Models\IntegracionConfig::where('user_id', auth()->id())->first();
+        
         $webhooks = [
             ['topic' => 'orders/create', 'nombre' => 'Nuevos Pedidos'],
             ['topic' => 'products/create', 'nombre' => 'Productos Creados'],
             ['topic' => 'products/update', 'nombre' => 'Productos Actualizados'],
             ['topic' => 'inventory_levels/update', 'nombre' => 'Inventario Actualizado']
         ];
+
+        // Agregar webhooks de Notas de Crédito si está habilitado
+        if ($config && $config->notas_credito_enabled) {
+            $webhooks[] = ['topic' => 'orders/cancelled', 'nombre' => 'Pedidos Cancelados'];
+            $webhooks[] = ['topic' => 'refunds/create', 'nombre' => 'Reembolsos Creados'];
+        }
 
         $creados = [];
 
@@ -413,6 +436,18 @@ class IntegracionController extends Controller
             switch ($evento) {
                 case 'orders_create':
                 case 'order_create':
+                    // Verificar límite de pedidos mensuales
+                    if ($config->order_limit_enabled && $config->monthly_order_limit) {
+                        $ordersThisMonth = $this->getMonthlyOrderCount($config->user_id);
+                        
+                        if ($ordersThisMonth >= $config->monthly_order_limit) {
+                            Log::channel('single')->warning("🚫 Límite mensual alcanzado: {$ordersThisMonth}/{$config->monthly_order_limit} - Pedido no procesado");
+                            return response()->json(['status' => 'limit_reached', 'message' => 'Límite mensual de pedidos alcanzado'], 200);
+                        }
+                        
+                        Log::channel('single')->info("📊 Pedidos este mes: {$ordersThisMonth}/{$config->monthly_order_limit}");
+                    }
+                    
                     // Verificar si la facturación está habilitada
                     if ($config->facturacion_enabled) {
                         Log::channel('single')->info('� Factturación habilitada - Procesando con módulo de facturación');
@@ -445,6 +480,26 @@ class IntegracionController extends Controller
                 case 'inventory_update':
                     Log::channel('single')->info('📦 Webhook: Inventario actualizado');
                     $webhookSync->handleInventoryUpdate($webhook_data);
+                    break;
+
+                case 'orders_cancelled':
+                case 'order_cancelled':
+                    if ($config->notas_credito_enabled) {
+                        Log::channel('single')->info('🔄 Pedido cancelado - Emitiendo Nota de Crédito');
+                        $this->procesarCancelacion($webhook_data, $lioren_api_key, $config);
+                    } else {
+                        Log::channel('single')->info('⚠️ Notas de Crédito deshabilitadas - Cancelación no procesada');
+                    }
+                    break;
+
+                case 'refunds_create':
+                case 'refund_create':
+                    if ($config->notas_credito_enabled) {
+                        Log::channel('single')->info('🔄 Reembolso creado - Emitiendo Nota de Crédito');
+                        $this->procesarReembolso($webhook_data, $lioren_api_key, $config);
+                    } else {
+                        Log::channel('single')->info('⚠️ Notas de Crédito deshabilitadas - Reembolso no procesado');
+                    }
                     break;
             }
 
@@ -717,6 +772,11 @@ class IntegracionController extends Controller
 
                 Log::channel('single')->info("✅ Factura #{$result['folio']} emitida exitosamente para pedido Shopify #{$order['order_number']}");
 
+                // Actualizar nota en Shopify si está habilitado
+                if ($config->shopify_visibility_enabled && isset($result['folio'])) {
+                    $this->updateShopifyOrderNote($order['id'], "Factura Lioren #{$result['folio']}", $config);
+                }
+
             } else {
                 Log::channel('single')->error('Error al emitir factura en Lioren', [
                     'status' => $response->status(),
@@ -941,8 +1001,10 @@ class IntegracionController extends Controller
 
                 Log::channel('single')->info("✅ Boleta #{$boleta->folio} emitida exitosamente para pedido Shopify #{$order['order_number']}");
 
-                // TODO: Actualizar el pedido en Shopify con el folio de la boleta
-                // Esto requiere GraphQL API de Shopify (implementar después si es necesario)
+                // Actualizar nota en Shopify si está habilitado
+                if ($config->shopify_visibility_enabled && $boleta->folio) {
+                    $this->updateShopifyOrderNote($order['id'], "Boleta Lioren #{$boleta->folio}", $config);
+                }
 
             } else {
                 Log::channel('single')->error('Error al emitir boleta en Lioren', [
@@ -1332,5 +1394,367 @@ class IntegracionController extends Controller
         $facturasCount = \App\Models\FacturaEmitida::count();
 
         return view('integracion.resetear', compact('config', 'productosCount', 'facturasCount'));
+    }
+
+    /**
+     * Actualizar nota del pedido en Shopify con el número de folio
+     */
+    private function updateShopifyOrderNote($orderId, $note, $config)
+    {
+        try {
+            Log::channel('single')->info("📝 Actualizando nota en Shopify para pedido #{$orderId}: {$note}");
+
+            $response = Http::withHeaders([
+                'X-Shopify-Access-Token' => $config->shopify_token,
+                'Content-Type' => 'application/json',
+            ])->put("https://{$config->shopify_tienda}/admin/api/2025-10/orders/{$orderId}.json", [
+                'order' => [
+                    'id' => $orderId,
+                    'note' => $note,
+                ]
+            ]);
+
+            if ($response->successful()) {
+                Log::channel('single')->info("✅ Nota actualizada exitosamente en Shopify");
+                return true;
+            } else {
+                Log::channel('single')->error("❌ Error actualizando nota en Shopify", [
+                    'status' => $response->status(),
+                    'body' => $response->body(),
+                ]);
+                return false;
+            }
+
+        } catch (\Exception $e) {
+            Log::channel('single')->error("❌ Excepción actualizando nota en Shopify: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Obtener cantidad de pedidos procesados en el mes actual
+     */
+    private function getMonthlyOrderCount($userId)
+    {
+        $startOfMonth = now()->startOfMonth();
+        $endOfMonth = now()->endOfMonth();
+
+        $boletasCount = \App\Models\Boleta::where('user_id', $userId)
+            ->whereBetween('created_at', [$startOfMonth, $endOfMonth])
+            ->where('status', 'emitida')
+            ->count();
+
+        $facturasCount = \App\Models\FacturaEmitida::where('shopify_order_id', '!=', null)
+            ->whereBetween('created_at', [$startOfMonth, $endOfMonth])
+            ->where('status', 'emitida')
+            ->count();
+
+        return $boletasCount + $facturasCount;
+    }
+
+    /**
+     * Procesar cancelación de pedido y emitir Nota de Crédito
+     */
+    private function procesarCancelacion($order, $api_key, $config)
+    {
+        Log::channel('single')->info('=== PROCESANDO CANCELACIÓN DE PEDIDO ===', [
+            'order_id' => $order['id'] ?? null,
+            'order_number' => $order['order_number'] ?? null,
+        ]);
+
+        try {
+            $orderId = (string)$order['id'];
+
+            // Buscar boleta o factura original
+            $boleta = \App\Models\Boleta::where('observaciones', 'LIKE', "%Shopify #{$order['order_number']}%")
+                ->where('status', 'emitida')
+                ->first();
+
+            $factura = \App\Models\FacturaEmitida::where('shopify_order_id', $orderId)
+                ->where('status', 'emitida')
+                ->first();
+
+            if (!$boleta && !$factura) {
+                Log::channel('single')->warning('No se encontró boleta/factura original para este pedido');
+                return;
+            }
+
+            // Determinar tipo de documento original y folio
+            if ($factura) {
+                $tipoDocOriginal = '33'; // Factura
+                $folioOriginal = $factura->folio;
+                $rutReceptor = $factura->rut_receptor;
+                $razonSocial = $factura->razon_social;
+                $montoTotal = $factura->monto_total;
+            } else {
+                $tipoDocOriginal = '39'; // Boleta
+                $folioOriginal = $boleta->folio;
+                $rutReceptor = $boleta->receptor_rut ?? '66666666-6';
+                $razonSocial = $boleta->receptor_nombre ?? 'Cliente';
+                $montoTotal = $boleta->monto_total;
+            }
+
+            Log::channel('single')->info("Documento original encontrado: Tipo {$tipoDocOriginal}, Folio {$folioOriginal}");
+
+            // Emitir Nota de Crédito
+            $this->emitirNotaCredito(
+                $api_key,
+                $config,
+                $tipoDocOriginal,
+                $folioOriginal,
+                $rutReceptor,
+                $razonSocial,
+                $montoTotal,
+                $orderId,
+                $order['order_number'] ?? $orderId,
+                'Anula documento por cancelación de pedido'
+            );
+
+        } catch (\Exception $e) {
+            Log::channel('single')->error('Error procesando cancelación: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
+        }
+    }
+
+    /**
+     * Procesar reembolso y emitir Nota de Crédito
+     */
+    private function procesarReembolso($refund, $api_key, $config)
+    {
+        Log::channel('single')->info('=== PROCESANDO REEMBOLSO ===', [
+            'refund_id' => $refund['id'] ?? null,
+            'order_id' => $refund['order_id'] ?? null,
+        ]);
+
+        try {
+            $orderId = (string)($refund['order_id'] ?? null);
+
+            if (!$orderId) {
+                Log::channel('single')->warning('Reembolso sin order_id');
+                return;
+            }
+
+            // Buscar boleta o factura original
+            $factura = \App\Models\FacturaEmitida::where('shopify_order_id', $orderId)
+                ->where('status', 'emitida')
+                ->first();
+
+            $boleta = null;
+            if (!$factura) {
+                // Buscar por order_id en observaciones de boleta
+                $boleta = \App\Models\Boleta::where('observaciones', 'LIKE', "%{$orderId}%")
+                    ->where('status', 'emitida')
+                    ->first();
+            }
+
+            if (!$boleta && !$factura) {
+                Log::channel('single')->warning('No se encontró boleta/factura original para este reembolso');
+                return;
+            }
+
+            // Determinar tipo de documento original y folio
+            if ($factura) {
+                $tipoDocOriginal = '33'; // Factura
+                $folioOriginal = $factura->folio;
+                $rutReceptor = $factura->rut_receptor;
+                $razonSocial = $factura->razon_social;
+                $montoTotal = $factura->monto_total;
+                $orderNumber = $factura->shopify_order_number;
+            } else {
+                $tipoDocOriginal = '39'; // Boleta
+                $folioOriginal = $boleta->folio;
+                $rutReceptor = $boleta->receptor_rut ?? '66666666-6';
+                $razonSocial = $boleta->receptor_nombre ?? 'Cliente';
+                $montoTotal = $boleta->monto_total;
+                $orderNumber = $orderId;
+            }
+
+            Log::channel('single')->info("Documento original encontrado: Tipo {$tipoDocOriginal}, Folio {$folioOriginal}");
+
+            // Emitir Nota de Crédito
+            $this->emitirNotaCredito(
+                $api_key,
+                $config,
+                $tipoDocOriginal,
+                $folioOriginal,
+                $rutReceptor,
+                $razonSocial,
+                $montoTotal,
+                $orderId,
+                $orderNumber,
+                'Anula documento por reembolso'
+            );
+
+        } catch (\Exception $e) {
+            Log::channel('single')->error('Error procesando reembolso: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
+        }
+    }
+
+    /**
+     * Emitir Nota de Crédito en Lioren
+     */
+    private function emitirNotaCredito($api_key, $config, $tipoDocOriginal, $folioOriginal, $rutReceptor, $razonSocial, $montoTotal, $orderId, $orderNumber, $glosa)
+    {
+        try {
+            Log::channel('single')->info('Emitiendo Nota de Crédito en Lioren', [
+                'tipo_doc_original' => $tipoDocOriginal,
+                'folio_original' => $folioOriginal,
+                'monto' => $montoTotal,
+            ]);
+
+            // Calcular monto neto (sin IVA)
+            $montoNeto = round($montoTotal / 1.19, 2);
+
+            // Preparar datos de la Nota de Crédito
+            $notaCreditoData = [
+                'emisor' => [
+                    'tipodoc' => '61', // Nota de Crédito
+                    'fecha' => now()->format('Y-m-d'),
+                ],
+                'receptor' => [
+                    'rut' => str_replace('.', '', $rutReceptor),
+                    'rs' => substr($razonSocial, 0, 100),
+                    'giro' => 'Comercio',
+                    'comuna' => 13101, // Santiago Centro por defecto
+                    'ciudad' => 131, // Santiago
+                    'direccion' => 'Sin dirección',
+                ],
+                'detalles' => [
+                    [
+                        'nombre' => 'Devolución por cancelación/reembolso',
+                        'cantidad' => 1,
+                        'precio' => $montoNeto,
+                        'exento' => false,
+                    ]
+                ],
+                'referencias' => [
+                    [
+                        'fecha' => now()->format('Y-m-d'),
+                        'tipodoc' => $tipoDocOriginal, // 39=Boleta, 33=Factura
+                        'folio' => (string)$folioOriginal,
+                        'razon' => 1, // Anula documento de referencia
+                        'glosa' => $glosa,
+                    ]
+                ],
+                'expects' => 'all',
+            ];
+
+            Log::channel('single')->info('Datos de Nota de Crédito preparados', $notaCreditoData);
+
+            // Enviar a Lioren
+            $response = Http::withHeaders([
+                'Authorization' => "Bearer {$api_key}",
+                'Content-Type' => 'application/json',
+                'Accept' => 'application/json',
+            ])->timeout(30)->post('https://www.lioren.cl/api/dtes', $notaCreditoData);
+
+            Log::channel('single')->info("Respuesta Lioren: Status {$response->status()}");
+
+            if ($response->successful()) {
+                $result = $response->json();
+
+                // Guardar Nota de Crédito en base de datos
+                \App\Models\NotaCredito::create([
+                    'shopify_order_id' => $orderId,
+                    'shopify_order_number' => $orderNumber,
+                    'tipo_documento_original' => $tipoDocOriginal,
+                    'folio_original' => $folioOriginal,
+                    'lioren_nota_id' => $result['id'] ?? null,
+                    'folio' => $result['folio'] ?? null,
+                    'rut_receptor' => $rutReceptor,
+                    'razon_social' => $razonSocial,
+                    'monto_neto' => $result['montoneto'] ?? 0,
+                    'monto_iva' => $result['montoiva'] ?? 0,
+                    'monto_total' => $result['montototal'] ?? 0,
+                    'pdf_base64' => $result['pdf'] ?? null,
+                    'xml_base64' => $result['xml'] ?? null,
+                    'status' => 'emitida',
+                    'glosa' => $glosa,
+                    'emitida_at' => now(),
+                ]);
+
+                Log::channel('single')->info("✅ Nota de Crédito #{$result['folio']} emitida exitosamente");
+
+                // Actualizar nota en Shopify si está habilitado
+                if ($config->shopify_visibility_enabled && isset($result['folio'])) {
+                    $this->updateShopifyOrderNote($orderId, "Nota de Crédito Lioren #{$result['folio']}", $config);
+                }
+
+            } else {
+                Log::channel('single')->error('Error al emitir Nota de Crédito en Lioren', [
+                    'status' => $response->status(),
+                    'body' => $response->body(),
+                ]);
+
+                // Guardar error en BD
+                \App\Models\NotaCredito::create([
+                    'shopify_order_id' => $orderId,
+                    'shopify_order_number' => $orderNumber,
+                    'tipo_documento_original' => $tipoDocOriginal,
+                    'folio_original' => $folioOriginal,
+                    'rut_receptor' => $rutReceptor,
+                    'razon_social' => $razonSocial,
+                    'monto_neto' => 0,
+                    'monto_iva' => 0,
+                    'monto_total' => 0,
+                    'status' => 'error',
+                    'glosa' => $glosa,
+                    'error_message' => $response->body(),
+                ]);
+            }
+
+        } catch (\Exception $e) {
+            Log::channel('single')->error('Excepción al emitir Nota de Crédito: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
+        }
+    }
+
+    /**
+     * Listar notas de crédito emitidas
+     */
+    public function notasCredito()
+    {
+        $notasCredito = \App\Models\NotaCredito::orderBy('created_at', 'desc')->paginate(20);
+        return view('integracion.notas-credito', compact('notasCredito'));
+    }
+
+    /**
+     * Descargar PDF de nota de crédito
+     */
+    public function notaCreditoPdf($id)
+    {
+        $notaCredito = \App\Models\NotaCredito::findOrFail($id);
+
+        if (!$notaCredito->pdf_base64) {
+            abort(404, 'PDF no disponible');
+        }
+
+        $pdf = base64_decode($notaCredito->pdf_base64);
+        
+        return response($pdf)
+            ->header('Content-Type', 'application/pdf')
+            ->header('Content-Disposition', "inline; filename=nota_credito_{$notaCredito->folio}.pdf");
+    }
+
+    /**
+     * Descargar XML de nota de crédito
+     */
+    public function notaCreditoXml($id)
+    {
+        $notaCredito = \App\Models\NotaCredito::findOrFail($id);
+
+        if (!$notaCredito->xml_base64) {
+            abort(404, 'XML no disponible');
+        }
+
+        $xml = base64_decode($notaCredito->xml_base64);
+        
+        return response($xml)
+            ->header('Content-Type', 'application/xml')
+            ->header('Content-Disposition', "attachment; filename=nota_credito_{$notaCredito->folio}.xml");
     }
 }
