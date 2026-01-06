@@ -14,10 +14,12 @@
             overflow: hidden;
             position: relative;
         }
+
         .plan-card:hover {
             transform: translateY(-10px);
             box-shadow: 0 20px 40px -5px rgba(0, 0, 0, 0.2);
         }
+
         .plan-card::before {
             content: '';
             position: absolute;
@@ -27,11 +29,13 @@
             height: 6px;
             background: linear-gradient(135deg, #FFC107 0%, #FFB300 100%);
         }
+
         .plan-header {
             padding: 2rem;
             text-align: center;
             background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
         }
+
         .plan-empresa {
             display: inline-block;
             padding: 0.5rem 1rem;
@@ -44,12 +48,14 @@
             border-radius: 9999px;
             margin-bottom: 1rem;
         }
+
         .plan-nombre {
             font-size: 1.75rem;
             font-weight: 800;
             color: #111827;
             margin-bottom: 0.5rem;
         }
+
         .plan-precio {
             font-size: 3rem;
             font-weight: 900;
@@ -57,20 +63,24 @@
             line-height: 1;
             margin-bottom: 0.5rem;
         }
+
         .plan-precio-label {
             font-size: 0.875rem;
             color: #6b7280;
             font-weight: 600;
         }
+
         .plan-body {
             padding: 2rem;
         }
+
         .plan-descripcion {
             color: #6b7280;
             line-height: 1.6;
             margin-bottom: 1.5rem;
             text-align: center;
         }
+
         .caracteristica-item {
             display: flex;
             align-items: flex-start;
@@ -81,15 +91,18 @@
             border-radius: 0.5rem;
             transition: all 0.2s;
         }
+
         .caracteristica-item:hover {
             background: #f3f4f6;
             transform: translateX(5px);
         }
+
         .caracteristica-icon {
             color: #10b981;
             font-size: 1.25rem;
             flex-shrink: 0;
         }
+
         .btn-solicitar {
             width: 100%;
             padding: 1rem 2rem;
@@ -107,6 +120,7 @@
             position: relative;
             overflow: hidden;
         }
+
         .btn-solicitar::before {
             content: '';
             position: absolute;
@@ -117,20 +131,25 @@
             background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
             transition: left 0.5s;
         }
+
         .btn-solicitar:hover {
             transform: translateY(-2px);
             box-shadow: 0 15px 35px -5px rgba(255, 193, 7, 0.6);
         }
+
         .btn-solicitar:hover::before {
             left: 100%;
         }
+
         .btn-solicitar:active {
             transform: translateY(0);
         }
+
         .empty-state {
             text-align: center;
             padding: 4rem 2rem;
         }
+
         .empty-icon {
             font-size: 4rem;
             color: #d1d5db;
@@ -151,64 +170,64 @@
             </div>
 
             @if($planes->isEmpty())
-                <div class="empty-state">
-                    <div class="empty-icon">
-                        <i class="fas fa-clipboard-list"></i>
-                    </div>
-                    <h3 style="font-size: 1.5rem; font-weight: 700; color: #374151; margin-bottom: 0.5rem;">
-                        No hay planes disponibles
-                    </h3>
-                    <p style="color: #6b7280;">
-                        Pronto tendremos nuevos planes para ti
-                    </p>
+            <div class="empty-state">
+                <div class="empty-icon">
+                    <i class="fas fa-clipboard-list"></i>
                 </div>
+                <h3 style="font-size: 1.5rem; font-weight: 700; color: #374151; margin-bottom: 0.5rem;">
+                    No hay planes disponibles
+                </h3>
+                <p style="color: #6b7280;">
+                    Pronto tendremos nuevos planes para ti
+                </p>
+            </div>
             @else
-                <!-- Grid de Planes -->
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 2rem;">
-                    @foreach($planes as $plan)
-                        <div class="plan-card">
-                            <!-- Header del Plan -->
-                            <div class="plan-header">
-                                <div class="plan-empresa">
-                                    <i class="fas fa-building"></i> {{ $plan->empresa->nombre }}
-                                </div>
-                                <h3 class="plan-nombre">{{ $plan->nombre }}</h3>
-                                <div class="plan-precio">
-                                    ${{ number_format($plan->precio, 2) }}
-                                </div>
-                                <div class="plan-precio-label">USD / mes</div>
-                            </div>
-
-                            <!-- Body del Plan -->
-                            <div class="plan-body">
-                                <p class="plan-descripcion">{{ $plan->descripcion }}</p>
-
-                                <!-- Características -->
-                                <div style="margin-bottom: 2rem;">
-                                    <h4 style="font-size: 0.875rem; font-weight: 700; color: #111827; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 1rem;">
-                                        <i class="fas fa-check-circle" style="color: #10b981;"></i> Incluye:
-                                    </h4>
-                                    @foreach($plan->caracteristicas as $caracteristica)
-                                        <div class="caracteristica-item">
-                                            <i class="fas fa-check-circle caracteristica-icon"></i>
-                                            <span style="color: #374151; font-weight: 500;">{{ $caracteristica }}</span>
-                                        </div>
-                                    @endforeach
-                                </div>
-
-                                <!-- Botones de Acción -->
-                                <div style="display: flex; gap: 0.75rem; margin-bottom: 0.75rem;">
-                                    <button onclick="verInformacion({{ $plan->id }}, '{{ $plan->nombre }}', '{{ addslashes($plan->descripcion) }}', '{{ $plan->empresa->nombre }}', {{ $plan->precio }}, {{ json_encode($plan->caracteristicas) }})" style="flex: 1; padding: 0.75rem; background: #f3f4f6; color: #374151; font-weight: 700; font-size: 0.875rem; text-transform: uppercase; border: 2px solid #d1d5db; border-radius: 0.75rem; cursor: pointer; transition: all 0.3s;" onmouseover="this.style.background='#e5e7eb'; this.style.borderColor='#9ca3af'" onmouseout="this.style.background='#f3f4f6'; this.style.borderColor='#d1d5db'">
-                                        <i class="fas fa-info-circle"></i> Más Info
-                                    </button>
-                                </div>
-                                <button onclick="solicitarPlan({{ $plan->id }}, '{{ $plan->nombre }}', '{{ $plan->empresa->nombre }}')" class="btn-solicitar">
-                                    <i class="fas fa-paper-plane"></i> Solicitar Plan
-                                </button>
-                            </div>
+            <!-- Grid de Planes -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 2rem;">
+                @foreach($planes as $plan)
+                <div class="plan-card">
+                    <!-- Header del Plan -->
+                    <div class="plan-header">
+                        <div class="plan-empresa">
+                            <i class="fas fa-building"></i> {{ $plan->empresa->nombre }}
                         </div>
-                    @endforeach
+                        <h3 class="plan-nombre">{{ $plan->nombre }}</h3>
+                        <div class="plan-precio">
+                            ${{ number_format($plan->precio, 2) }}
+                        </div>
+                        <div class="plan-precio-label">USD / mes</div>
+                    </div>
+
+                    <!-- Body del Plan -->
+                    <div class="plan-body">
+                        <p class="plan-descripcion">{{ $plan->descripcion }}</p>
+
+                        <!-- Características -->
+                        <div style="margin-bottom: 2rem;">
+                            <h4 style="font-size: 0.875rem; font-weight: 700; color: #111827; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 1rem;">
+                                <i class="fas fa-check-circle" style="color: #10b981;"></i> Incluye:
+                            </h4>
+                            @foreach($plan->caracteristicas as $caracteristica)
+                            <div class="caracteristica-item">
+                                <i class="fas fa-check-circle caracteristica-icon"></i>
+                                <span style="color: #374151; font-weight: 500;">{{ $caracteristica }}</span>
+                            </div>
+                            @endforeach
+                        </div>
+
+                        <!-- Botones de Acción -->
+                        <div style="display: flex; gap: 0.75rem; margin-bottom: 0.75rem;">
+                            <button onclick="verInformacion({{ $plan->id }}, '{{ $plan->nombre }}', '{{ addslashes($plan->descripcion) }}', '{{ $plan->empresa->nombre }}', {{ $plan->precio }}, {{ json_encode($plan->caracteristicas) }})" style="flex: 1; padding: 0.75rem; background: #f3f4f6; color: #374151; font-weight: 700; font-size: 0.875rem; text-transform: uppercase; border: 2px solid #d1d5db; border-radius: 0.75rem; cursor: pointer; transition: all 0.3s;" onmouseover="this.style.background='#e5e7eb'; this.style.borderColor='#9ca3af'" onmouseout="this.style.background='#f3f4f6'; this.style.borderColor='#d1d5db'">
+                                <i class="fas fa-info-circle"></i> Más Info
+                            </button>
+                        </div>
+                        <button onclick="solicitarPlan({{ $plan->id }}, '{{ addslashes($plan->nombre) }}', '{{ addslashes($plan->empresa->nombre) }}')" class="btn-solicitar">
+                            <i class="fas fa-paper-plane"></i> Solicitar Plan
+                        </button>
+                    </div>
                 </div>
+                @endforeach
+            </div>
             @endif
 
             <!-- Información Adicional -->
@@ -231,7 +250,7 @@
                 <i class="fas fa-paper-plane" style="font-size: 3rem; color: #1a1a1a; margin-bottom: 1rem;"></i>
                 <h3 style="font-size: 1.5rem; font-weight: 700; color: #1a1a1a; margin: 0;">Solicitar Plan</h3>
             </div>
-            
+
             <!-- Contenido -->
             <div style="padding: 2rem;">
                 <div style="text-align: center; margin-bottom: 2rem;">
@@ -277,7 +296,7 @@
                     <i class="fas fa-times" style="font-size: 1.5rem;"></i>
                 </button>
             </div>
-            
+
             <!-- Contenido -->
             <div style="padding: 2rem;">
                 <!-- Empresa y Precio -->
@@ -350,7 +369,7 @@
     <!-- Modal Wizard de Solicitud -->
     <div id="wizardModal" style="display: none; position: fixed; z-index: 60; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.6); backdrop-filter: blur(4px);">
         <div style="background: white; margin: 2% auto; padding: 0; border-radius: 1rem; width: 90%; max-width: 700px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);">
-            
+
             <!-- Paso 1: Confirmación -->
             <div id="wizardStep1" class="wizard-step">
                 <div style="background: linear-gradient(135deg, #FFD54F 0%, #FFCA28 100%); padding: 2rem; border-radius: 1rem 1rem 0 0; text-align: center;">
@@ -448,12 +467,12 @@
             planIdSeleccionado = planId;
             planNombreTemp = nombre;
             empresaTemp = empresa;
-            
+
             document.getElementById('infoModalTitle').textContent = nombre;
             document.getElementById('infoEmpresa').textContent = empresa;
             document.getElementById('infoPrecio').textContent = '$' + parseFloat(precio).toFixed(2) + ' USD/mes';
             document.getElementById('infoDescripcion').textContent = descripcion;
-            
+
             // Características
             const caracteristicasList = document.getElementById('infoCaracteristicas');
             caracteristicasList.innerHTML = '';
@@ -466,7 +485,7 @@
                 `;
                 caracteristicasList.appendChild(li);
             });
-            
+
             document.getElementById('infoModal').style.display = 'block';
         }
 
@@ -483,22 +502,22 @@
             closeInfoModal();
             // Crear nuevo chat
             fetch('{{ route("cliente.chats.store") }}', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                },
-                body: JSON.stringify({
-                    plan_id: planIdSeleccionado
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    },
+                    body: JSON.stringify({
+                        plan_id: planIdSeleccionado
+                    })
                 })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    window.location.href = '/chats/' + data.chat_id;
-                }
-            })
-            .catch(error => console.error('Error:', error));
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        window.location.href = '/chats/' + data.chat_id;
+                    }
+                })
+                .catch(error => console.error('Error:', error));
         }
 
         function abrirWhatsApp() {
@@ -509,6 +528,7 @@
         }
 
         function solicitarPlan(planId, planNombre, empresa) {
+            console.log('solicitarPlan llamado con:', planId, planNombre, empresa);
             planIdSeleccionado = planId;
             planNombreTemp = planNombre;
             empresaTemp = empresa;
@@ -519,7 +539,7 @@
 
         function closeSolicitudModal() {
             document.getElementById('solicitudModal').style.display = 'none';
-            planIdSeleccionado = null;
+            // NO ponemos planIdSeleccionado = null aquí porque lo necesitamos para el wizard
         }
 
         function confirmarSolicitud() {
@@ -533,17 +553,27 @@
 
         function abrirWizard() {
             wizardStep = 1;
-            
+
+            // Debug: verificar variables
+            console.log('planIdSeleccionado:', planIdSeleccionado);
+            console.log('planNombreTemp:', planNombreTemp);
+            console.log('empresaTemp:', empresaTemp);
+
             // Buscar el precio del plan
             const planes = @json($planes);
+            console.log('Planes disponibles:', planes);
             const planSeleccionado = planes.find(p => p.id === planIdSeleccionado);
-            
+            console.log('Plan encontrado:', planSeleccionado);
+
             wizardData = {
                 plan_id: planIdSeleccionado,
                 plan_nombre: planNombreTemp,
                 empresa: empresaTemp,
                 precio: planSeleccionado ? planSeleccionado.precio : 0
             };
+
+            console.log('wizardData creado:', wizardData);
+
             document.getElementById('wizardModal').style.display = 'block';
             mostrarPasoWizard(1);
         }
@@ -551,7 +581,7 @@
         function mostrarPasoWizard(paso) {
             document.querySelectorAll('.wizard-step').forEach(el => el.style.display = 'none');
             document.getElementById('wizardStep' + paso).style.display = 'block';
-            
+
             if (paso === 1) {
                 document.getElementById('wizardPlanNombre').textContent = wizardData.plan_nombre;
                 document.getElementById('wizardEmpresa').textContent = wizardData.empresa;
@@ -580,61 +610,70 @@
 
         function procesarPago() {
             if (procesandoPago) return;
-            
+
             procesandoPago = true;
             const btn = event.target;
             btn.disabled = true;
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando...';
-            
-            // TODO: Aquí irá la integración con Flow
-            // Por ahora, creamos la solicitud y simulamos el pago
-            
-            const formData = {
-                plan_id: wizardData.plan_id,
-            };
 
-            fetch('{{ route("cliente.solicitudes.store") }}', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                    'Accept': 'application/json'
-                },
-                body: JSON.stringify(formData)
-            })
-            .then(response => {
-                if (!response.ok) {
-                    return response.json().then(err => Promise.reject(err));
-                }
-                return response.json();
-            })
-            .then(data => {
-                if (data.success) {
-                    // TODO: Aquí redirigir a Flow
-                    // Por ahora, simulamos éxito
-                    setTimeout(() => {
-                        wizardStep = 3;
-                        mostrarPasoWizard(3);
-                    }, 1000);
-                } else {
-                    alert('Error: ' + (data.message || 'No se pudo procesar el pago'));
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                let mensaje = 'Error al procesar el pago';
-                if (error.errors) {
-                    mensaje = Object.values(error.errors).flat().join('\n');
-                } else if (error.message) {
-                    mensaje = error.message;
-                }
-                alert(mensaje);
-            })
-            .finally(() => {
+            // Verificar que tenemos el plan_id
+            console.log('Plan ID seleccionado:', wizardData.plan_id);
+
+            if (!wizardData.plan_id) {
+                alert('Error: No se ha seleccionado un plan válido');
                 procesandoPago = false;
                 btn.disabled = false;
                 btn.innerHTML = '<i class="fas fa-lock"></i> Pagar con Flow';
-            });
+                return;
+            }
+
+            // Integración con Flow
+            const formData = {
+                plan_id: parseInt(wizardData.plan_id), // Asegurar que sea número
+            };
+
+            console.log('Enviando datos:', formData);
+
+            fetch('{{ route("flow.create-plan-payment") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                })
+                .then(response => {
+                    console.log('Respuesta recibida:', response);
+                    if (!response.ok) {
+                        return response.json().then(err => Promise.reject(err));
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Datos de respuesta:', data);
+                    if (data.success && data.redirect_url) {
+                        // Redirigir a Flow para procesar el pago
+                        window.location.href = data.redirect_url;
+                    } else {
+                        alert('Error: ' + (data.message || 'No se pudo procesar el pago'));
+                    }
+                })
+                .catch(error => {
+                    console.error('Error completo:', error);
+                    let mensaje = 'Error al procesar el pago';
+                    if (error.errors) {
+                        mensaje = Object.values(error.errors).flat().join('\n');
+                    } else if (error.message) {
+                        mensaje = error.message;
+                    }
+                    alert(mensaje);
+                })
+                .finally(() => {
+                    procesandoPago = false;
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-lock"></i> Pagar con Flow';
+                });
         }
 
         function cerrarWizard() {
@@ -648,7 +687,7 @@
         window.onclick = function(event) {
             const solicitudModal = document.getElementById('solicitudModal');
             const infoModal = document.getElementById('infoModal');
-            
+
             if (event.target == solicitudModal) {
                 closeSolicitudModal();
             }

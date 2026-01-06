@@ -3,6 +3,8 @@
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Http\Request;
 
 /*
 |--------------------------------------------------------------------------
@@ -54,7 +56,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('integracion')->name('integrac
     Route::get('/estado', [App\Http\Controllers\IntegracionController::class, 'estado'])->name('estado');
     Route::get('/resetear', [App\Http\Controllers\IntegracionController::class, 'confirmarReset'])->name('resetear');
     Route::delete('/resetear', [App\Http\Controllers\IntegracionController::class, 'resetearIntegracion'])->name('resetear.ejecutar');
-    
+
     // Configuración de Bodegas
     Route::get('/bodegas', [App\Http\Controllers\WarehouseConfigController::class, 'index'])->name('bodegas');
     Route::get('/bodegas/config', [App\Http\Controllers\WarehouseConfigController::class, 'getConfig'])->name('bodegas.config');
@@ -104,11 +106,11 @@ Route::middleware(['auth', 'role:cliente'])->prefix('cliente')->name('cliente.')
     Route::get('/estados-solicitud', [App\Http\Controllers\ClienteController::class, 'estadosSolicitud'])->name('estados-solicitud');
     Route::get('/planes-activos', [App\Http\Controllers\ClienteController::class, 'planesActivos'])->name('planes-activos');
     Route::get('/facturas', [App\Http\Controllers\ClienteController::class, 'facturas'])->name('facturas');
-    
+
     // Chats
     Route::get('/chats', [App\Http\Controllers\ChatController::class, 'index'])->name('chats');
     Route::post('/chats', [App\Http\Controllers\ChatController::class, 'store'])->name('chats.store');
-    
+
     // Solicitudes
     Route::post('/solicitudes', [App\Http\Controllers\SolicitudController::class, 'store'])->name('solicitudes.store');
     Route::get('/solicitudes/{solicitud}/config', [App\Http\Controllers\SolicitudController::class, 'getConfig'])->name('solicitudes.getConfig');
@@ -132,7 +134,212 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::post('/solicitudes/{solicitud}/estado', [App\Http\Controllers\SolicitudController::class, 'updateEstado'])->name('solicitudes.updateEstado');
 });
 
+// Flow Payment Routes
+Route::prefix('flow')->name('flow.')->group(function () {
+    // Ruta de prueba simple
+    Route::get('/debug-payment', function () {
+        $controller = new App\Http\Controllers\FlowController();
+
+        $params = [
+            'apiKey' => config('flow.api_key'),
+            'commerceOrder' => 'DEBUG_' . time(),
+            'subject' => 'Test Debug',
+            'currency' => 'CLP',
+            'amount' => 1000,
+            'email' => 'elianfa3000@gmail.com',
+            'urlConfirmation' => route('flow.confirmation'),
+            'urlReturn' => route('flow.return'),
+        ];
+
+        // Usar el método del controlador
+        $reflection = new ReflectionClass($controller);
+        $method = $reflection->getMethod('signParams');
+        $method->setAccessible(true);
+        $signature = $method->invoke($controller, $params);
+        $params['s'] = $signature;
+
+        try {
+            $response = Http::withoutVerifying()->asForm()->post(config('flow.api_url') . '/payment/create', $params);
+
+            return response()->json([
+                'success' => $response->successful(),
+                'status' => $response->status(),
+                'response' => $response->json(),
+                'params_sent' => $params,
+                'api_url' => config('flow.api_url'),
+                'environment' => config('flow.environment'),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage(),
+                'params_sent' => $params,
+            ], 500);
+        }
+    })->name('debug-payment');
+
+    // Rutas públicas (sin autenticación)
+    Route::match(['GET', 'POST'], '/return', [App\Http\Controllers\FlowController::class, 'returnFromFlow'])->name('return');
+    Route::post('/confirmation', [App\Http\Controllers\FlowController::class, 'confirmationWebhook'])->name('confirmation');
+
+    // Ruta de prueba temporal sin autenticación
+    Route::get('/test-payment', function () {
+        $apiKey = config('flow.api_key');
+        $secretKey = config('flow.secret_key');
+        $apiUrl = config('flow.api_url');
+
+        // Parámetros exactos según documentación
+        $params = [
+            'apiKey' => $apiKey,
+            'commerceOrder' => uniqid('ORDER-'),
+            'subject' => 'Pago de prueba',
+            'currency' => 'CLP',
+            'amount' => 1000,
+            'email' => auth()->user()->email ?? 'test@example.com',
+            'urlConfirmation' => route('flow.confirmation'),
+            'urlReturn' => route('flow.return'),
+            'optional' => json_encode([
+                'test' => 'value'
+            ]),
+        ];
+
+        // Firmar parámetros con HMAC SHA256
+        ksort($params);
+        $toSign = '';
+        foreach ($params as $key => $value) {
+            $toSign .= $key . $value;
+        }
+        $signature = hash_hmac('sha256', $toSign, $secretKey);
+        $params['s'] = $signature;
+
+        try {
+            $response = Http::asForm()->post("{$apiUrl}/payment/create", $params);
+
+            return response()->json([
+                'success' => $response->successful(),
+                'status' => $response->status(),
+                'data' => $response->json(),
+                'redirect_url' => $response->successful() ? ($response->json()['url'] ?? null) : null,
+                'payment_data_sent' => $params,
+                'api_url' => $apiUrl,
+                'environment' => config('flow.environment'),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage(),
+                'payment_data_sent' => $params,
+                'api_url' => $apiUrl,
+                'environment' => config('flow.environment'),
+            ], 500);
+        }
+    })->name('test-payment');
+
+    // Rutas protegidas
+    Route::middleware('auth')->group(function () {
+        Route::get('/payment-form', [App\Http\Controllers\FlowController::class, 'showPaymentForm'])->name('payment-form');
+        Route::post('/create-payment', [App\Http\Controllers\FlowController::class, 'createPayment'])->name('create-payment');
+        Route::post('/create-plan-payment', [App\Http\Controllers\FlowController::class, 'createPlanPayment'])->name('create-plan-payment');
+    });
+});
+
+// Payment result pages
+Route::middleware('auth')->group(function () {
+    Route::get('/payment/success', function () {
+        return view('flow.success');
+    })->name('payment.success');
+
+    Route::get('/payment/error', function () {
+        return view('flow.error');
+    })->name('payment.error');
+
+    Route::get('/payment/pending', function () {
+        return view('flow.pending');
+    })->name('payment.pending');
+});
+
 // Webhook receiver - Public route (no auth required)
 Route::post('/integracion/webhook-receiver', [App\Http\Controllers\IntegracionController::class, 'webhookReceiver'])->name('integracion.webhook');
 
-require __DIR__.'/auth.php';
+require __DIR__ . '/auth.php';
+
+// Ruta de prueba temporal para Flow
+Route::get('/test-flow', function () {
+    $apiKey = config('flow.api_key');
+    $secretKey = config('flow.secret_key');
+
+    // Test básico de conexión con parámetros mínimos
+    $url = 'https://www.flow.cl/api/payment/create';
+
+    // Probar con diferentes combinaciones de parámetros
+    $testCases = [
+        'minimal' => [
+            'apiKey' => $apiKey,
+            'commerceOrder' => 'TEST_' . time(),
+            'subject' => 'Test',
+            'amount' => 1000,
+            'email' => 'test@example.com',
+            'urlConfirmation' => route('flow.confirmation'),
+            'urlReturn' => route('flow.return'),
+        ],
+        'with_currency' => [
+            'apiKey' => $apiKey,
+            'commerceOrder' => 'TEST_' . time(),
+            'subject' => 'Test',
+            'currency' => 'CLP',
+            'amount' => 1000,
+            'email' => 'test@example.com',
+            'urlConfirmation' => route('flow.confirmation'),
+            'urlReturn' => route('flow.return'),
+        ],
+        'with_payment_method' => [
+            'apiKey' => $apiKey,
+            'commerceOrder' => 'TEST_' . time(),
+            'subject' => 'Test',
+            'currency' => 'CLP',
+            'amount' => 1000,
+            'email' => 'test@example.com',
+            'paymentMethod' => 1,
+            'urlConfirmation' => route('flow.confirmation'),
+            'urlReturn' => route('flow.return'),
+        ]
+    ];
+
+    $results = [];
+
+    foreach ($testCases as $testName => $data) {
+        // Ordenar los datos alfabéticamente
+        ksort($data);
+
+        // Crear firma
+        $toSign = '';
+        foreach ($data as $key => $value) {
+            $toSign .= $key . $value;
+        }
+        $toSign .= $secretKey;
+        $signature = hash('sha256', $toSign);
+        $data['s'] = $signature;
+
+        try {
+            $response = Http::withoutVerifying()->post($url, $data);
+            $results[$testName] = [
+                'status' => $response->status(),
+                'body' => $response->json(),
+                'params_count' => count($data) - 1, // -1 para excluir la firma
+            ];
+        } catch (\Exception $e) {
+            $results[$testName] = [
+                'error' => $e->getMessage(),
+                'params_count' => count($data) - 1,
+            ];
+        }
+    }
+
+    return response()->json([
+        'test_results' => $results,
+        'credentials' => [
+            'api_key' => substr($apiKey, 0, 10) . '...',
+            'has_secret' => !empty($secretKey),
+        ]
+    ]);
+});
