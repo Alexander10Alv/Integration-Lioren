@@ -5,6 +5,10 @@
         </h2>
     </x-slot>
 
+    <!-- Loader CSS y JS -->
+    <link rel="stylesheet" href="{{ asset('css/admin-connection-loader.css') }}">
+    <script src="{{ asset('js/admin-connection-loader.js') }}"></script>
+
     <div class="py-12">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
             
@@ -155,7 +159,7 @@
 
                                 <!-- Actions -->
                                 <div class="ml-6 flex flex-col gap-2">
-                                    <form action="{{ route('admin.solicitudes.conectar', $solicitud) }}" method="POST" onsubmit="return confirm('¿Estás seguro de conectar esta integración? Se validarán las credenciales, crearán webhooks y sincronizarán productos.')">
+                                    <form action="{{ route('admin.solicitudes.conectar', $solicitud) }}" method="POST" onsubmit="return handleConectarSubmit(event)">
                                         @csrf
                                         <button 
                                             type="submit"
@@ -257,5 +261,28 @@
                 closeRejectModal();
             }
         }
+
+        // Manejar submit del formulario de conexión
+        function handleConectarSubmit(event) {
+            if (!confirm('¿Estás seguro de conectar esta integración? Se validarán las credenciales, crearán webhooks y sincronizarán productos.')) {
+                event.preventDefault();
+                return false;
+            }
+            
+            // Mostrar el loader animado
+            showConnectionLoader();
+            
+            // El formulario se enviará normalmente
+            return true;
+        }
+
+        // Si hay un mensaje de éxito o error, ocultar el loader
+        @if(session('success') || session('error'))
+            document.addEventListener('DOMContentLoaded', function() {
+                if (window.connectionLoader) {
+                    hideConnectionLoader();
+                }
+            });
+        @endif
     </script>
 </x-app-layout>
