@@ -118,4 +118,114 @@ class SolicitudController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Vista para que el cliente ingrese sus credenciales
+     */
+    public function credenciales()
+    {
+        // Obtener solicitudes del cliente que están pendientes de credenciales
+        $solicitudes = Solicitud::where('cliente_id', auth()->id())
+            ->whereIn('estado', ['pendiente', 'en_proceso'])
+            ->with('plan.empresa')
+            ->latest()
+            ->get();
+
+        return view('cliente.solicitudes.credenciales', compact('solicitudes'));
+    }
+
+    /**
+     * Guardar credenciales de integración
+     */
+    public function guardarCredenciales(Request $request, Solicitud $solicitud)
+    {
+        // Verificar que la solicitud pertenece al usuario autenticado
+        if ($solicitud->cliente_id !== auth()->id()) {
+            abort(403, 'No autorizado');
+        }
+
+        $validated = $request->validate([
+            'tienda_shopify' => 'required|string|regex:/^[a-zA-Z0-9\-]+\.myshopify\.com$/',
+            'access_token' => 'required|string|min:20',
+            'api_secret' => 'required|string|min:20',
+            'api_key' => 'required|string|min:10',
+            'telefono' => 'nullable|string',
+        ]);
+
+        $solicitud->update($validated);
+
+        return redirect()->route('cliente.solicitudes.credenciales')
+            ->with('success', 'Credenciales guardadas exitosamente. El administrador procederá con la conexión.');
+    }
+
+    /**
+     * Vista de admin para conectar integraciones
+     */
+    public function pendientesConexion()
+    {
+        $solicitudes = Solicitud::where('estado', 'en_proceso')
+            ->where('integracion_conectada', false)
+            ->whereNotNull('tienda_shopify')
+            ->whereNotNull('access_token')
+            ->whereNotNull('api_secret')
+            ->whereNotNull('api_key')
+            ->with(['cliente', 'plan.empresa', 'payment'])
+            ->latest()
+            ->paginate(10);
+
+        return view('admin.solicitudes.pendientes-conexion', compact('solicitudes'));
+    }
+
+    /**
+     * Conectar integración (Admin)
+     */
+    public function conectarIntegracion(Solicitud $solicitud)
+    {
+        try {
+            // Verificar que tiene credenciales
+            if (!$solicitud->tieneCredencialesCompletas()) {
+                return back()->with('error', 'La solicitud no tiene credenciales completas');
+            }
+
+            // Verificar que está en estado correcto
+            if (!$solicitud->puedeConectar()) {
+                return back()->with('error', 'La solicitud no está en estado válido para conectar');
+            }
+
+            // Llamar al servicio de integración
+            $integracionService = new \App\Services\IntegracionMulticlienteService();
+            $result = $integracionService->conectarCliente($solicitud);
+
+            if ($result['success']) {
+                return redirect()->route('admin.solicitudes.pendientes-conexion')
+                    ->with('success', $result['message']);
+            } else {
+                return back()->with('error', $result['message']);
+            }
+
+        } catch (\Exception $e) {
+            \Log::error('Error conectando integración: ' . $e->getMessage());
+            return back()->with('error', 'Error al conectar: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Rechazar solicitud (Admin)
+     */
+    public function rechazar(Request $request, Solicitud $solicitud)
+    {
+        $validated = $request->validate([
+            'notas_admin' => 'required|string|min:10',
+        ]);
+
+        $solicitud->update([
+            'estado' => 'rechazada',
+            'notas_admin' => $validated['notas_admin'],
+        ]);
+
+        // TODO: Enviar notificación al cliente
+
+        return redirect()->route('admin.solicitudes.pendientes-conexion')
+            ->with('success', 'Solicitud rechazada');
+    }
 }

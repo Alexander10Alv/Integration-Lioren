@@ -84,7 +84,7 @@
                                             <td class="px-6 py-4 whitespace-nowrap text-sm">
                                                 @if($boleta->status === 'emitida')
                                                     <div class="flex gap-2">
-                                                        @if($boleta->pdf_base64)
+                                                        @if($boleta->pdf_path || $boleta->pdf_base64)
                                                             <a href="{{ route('boletas.pdf', $boleta->id) }}" target="_blank"
                                                                 class="text-red-600 hover:text-red-900 font-semibold">
                                                                 📄 PDF

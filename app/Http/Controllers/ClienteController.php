@@ -31,21 +31,35 @@ class ClienteController extends Controller
      */
     public function estadosSolicitud()
     {
-        // TODO: Implementar listado de estados de solicitudes del cliente
-        return view('cliente.estados-solicitud');
+        $user = auth()->user();
+        
+        $solicitudes = \App\Models\Solicitud::where('cliente_id', $user->id)
+            ->with(['plan.empresa'])
+            ->orderBy('created_at', 'desc')
+            ->get();
+        
+        return view('cliente.solicitudes.estados', compact('solicitudes'));
     }
 
     /**
-     * Planes activos
+     * Planes activos (ahora muestra suscripciones)
      */
     public function planesActivos()
     {
-        $planesActivos = \App\Models\Solicitud::with(['plan.empresa'])
-            ->where('cliente_id', auth()->id())
-            ->where('estado', 'activa')
-            ->get();
+        $user = auth()->user();
         
-        return view('cliente.planes-activos', compact('planesActivos'));
+        $suscripcionActiva = \App\Models\Suscripcion::where('user_id', $user->id)
+            ->where('estado', 'activa')
+            ->with('plan')
+            ->first();
+        
+        $historialPagos = \App\Models\Payment::where('user_id', $user->id)
+            ->whereNotNull('suscripcion_id')
+            ->with('suscripcion.plan')
+            ->orderBy('created_at', 'desc')
+            ->paginate(10);
+        
+        return view('cliente.planes-activos', compact('suscripcionActiva', 'historialPagos'));
     }
 
     /**

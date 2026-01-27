@@ -15,7 +15,22 @@ class IntegracionController extends Controller
      */
     public function dashboard()
     {
-        return view('integracion.dashboard');
+        // Obtener solo las integraciones MANUALES (sin solicitud asociada)
+        $integraciones = \App\Models\IntegracionConfig::with(['user'])
+            ->where('activo', true)
+            ->whereNull('solicitud_id') // Solo las manuales del admin
+            ->latest()
+            ->get();
+
+        // Estadísticas generales
+        $stats = [
+            'total_integraciones' => $integraciones->count(),
+            'total_productos' => \App\Models\ProductMapping::where('sync_status', 'synced')->count(),
+            'total_webhooks' => \App\Models\ClienteWebhook::count(),
+            'total_boletas' => \App\Models\Boleta::where('status', 'emitida')->count(),
+        ];
+
+        return view('integracion.dashboard', compact('integraciones', 'stats'));
     }
 
     /**
@@ -384,6 +399,7 @@ class IntegracionController extends Controller
         $shop_domain = $request->header('X-Shopify-Shop-Domain');
         $topic = $request->header('X-Shopify-Topic');
         $evento = $request->query('evento');
+        $userId = $request->query('user_id'); // NUEVO: Identificar al cliente
 
         $data = $request->getContent();
 
@@ -392,15 +408,33 @@ class IntegracionController extends Controller
             'evento' => $evento,
             'topic' => $topic,
             'shop' => $shop_domain,
+            'user_id' => $userId,
         ]);
 
-        // Obtener configuración activa de la BD
-        $config = \App\Models\IntegracionConfig::getActiva();
+        // Obtener configuración del cliente específico
+        if ($userId) {
+            $config = \App\Models\IntegracionConfig::where('user_id', $userId)
+                ->where('activo', true)
+                ->first();
+        } else {
+            // Fallback: buscar por tienda (para compatibilidad con webhooks antiguos)
+            $config = \App\Models\IntegracionConfig::where('shopify_tienda', $shop_domain)
+                ->where('activo', true)
+                ->first();
+        }
         
         if (!$config) {
-            Log::channel('single')->error('No hay configuración activa');
+            Log::channel('single')->error('No hay configuración activa para este cliente', [
+                'user_id' => $userId,
+                'shop' => $shop_domain,
+            ]);
             return response()->json(['error' => 'No configuration found'], 500);
         }
+
+        Log::channel('single')->info('✅ Configuración encontrada', [
+            'config_id' => $config->id,
+            'user_id' => $config->user_id,
+        ]);
 
         // Validar HMAC (temporalmente desactivado para pruebas)
         if ($hmac_header && false) { // Desactivado temporalmente
@@ -430,7 +464,7 @@ class IntegracionController extends Controller
         try {
             $lioren_api_key = $config->lioren_api_key;
 
-            // Inicializar servicio de sincronización
+            // Inicializar servicio de sincronización con el user_id correcto
             $webhookSync = new WebhookSyncService($config->user_id);
 
             switch ($evento) {
@@ -451,10 +485,10 @@ class IntegracionController extends Controller
                     // Verificar si la facturación está habilitada
                     if ($config->facturacion_enabled) {
                         Log::channel('single')->info('� Factturación habilitada - Procesando con módulo de facturación');
-                        $this->procesarPedidoConFacturacion($webhook_data, $lioren_api_key);
+                        $this->procesarPedidoConFacturacion($webhook_data, $lioren_api_key, $config);
                     } else {
                         Log::channel('single')->info('📝 Facturación deshabilitada - Procesando solo boleta');
-                        $this->procesarPedido($webhook_data, $lioren_api_key);
+                        $this->procesarPedido($webhook_data, $lioren_api_key, $config);
                     }
                     break;
                     
@@ -593,7 +627,7 @@ class IntegracionController extends Controller
     /**
      * Procesar pedido CON facturación habilitada (detecta boleta o factura)
      */
-    private function procesarPedidoConFacturacion($order, $api_key)
+    private function procesarPedidoConFacturacion($order, $api_key, $config)
     {
         Log::channel('single')->info('=== PROCESANDO PEDIDO CON FACTURACIÓN ===', [
             'order_id' => $order['id'] ?? null,
@@ -638,7 +672,7 @@ class IntegracionController extends Controller
                 $this->emitirFactura($order, $api_key, $rut, $razonSocial, $giro);
             } else {
                 Log::channel('single')->info('📝 Emitiendo BOLETA (datos de factura incompletos o tipo=boleta)');
-                $this->procesarPedido($order, $api_key);
+                $this->procesarPedido($order, $api_key, $config);
             }
 
         } catch (\Exception $e) {
@@ -753,7 +787,8 @@ class IntegracionController extends Controller
                 $result = $response->json();
 
                 // Guardar factura en base de datos
-                \App\Models\FacturaEmitida::create([
+                $factura = \App\Models\FacturaEmitida::create([
+                    'user_id' => $config->user_id,
                     'shopify_order_id' => (string)$order['id'],
                     'shopify_order_number' => (string)($order['order_number'] ?? $order['id']),
                     'tipo_documento' => '33',
@@ -764,11 +799,18 @@ class IntegracionController extends Controller
                     'monto_neto' => $result['montoneto'] ?? 0,
                     'monto_iva' => $result['montoiva'] ?? 0,
                     'monto_total' => $result['montototal'] ?? 0,
-                    'pdf_base64' => $result['pdf'] ?? null,
-                    'xml_base64' => $result['xml'] ?? null,
                     'status' => 'emitida',
                     'emitida_at' => now(),
                 ]);
+
+                // Guardar PDF y XML como archivos
+                if (isset($result['pdf'])) {
+                    $factura->pdf_path = $factura->savePdfFromBase64($result['pdf']);
+                }
+                if (isset($result['xml'])) {
+                    $factura->xml_path = $factura->saveXmlFromBase64($result['xml']);
+                }
+                $factura->save();
 
                 Log::channel('single')->info("✅ Factura #{$result['folio']} emitida exitosamente para pedido Shopify #{$order['order_number']}");
 
@@ -785,6 +827,7 @@ class IntegracionController extends Controller
 
                 // Guardar error en BD
                 \App\Models\FacturaEmitida::create([
+                    'user_id' => $config->user_id,
                     'shopify_order_id' => (string)$order['id'],
                     'shopify_order_number' => (string)($order['order_number'] ?? $order['id']),
                     'tipo_documento' => '33',
@@ -899,10 +942,11 @@ class IntegracionController extends Controller
     /**
      * Procesar pedido y emitir boleta automáticamente (SIN facturación)
      */
-    private function procesarPedido($order, $api_key)
+    private function procesarPedido($order, $api_key, $config)
     {
         Log::channel('single')->info('=== PROCESANDO PEDIDO (SOLO BOLETA) ===', [
             'order_id' => $order['id'] ?? null,
+            'order_id_type' => gettype($order['id'] ?? null),
             'order_number' => $order['order_number'] ?? null,
             'total' => $order['total_price'] ?? null,
         ]);
@@ -978,9 +1022,14 @@ class IntegracionController extends Controller
             if ($response->successful()) {
                 $result = $response->json();
 
+                // Convertir order_id a string explícitamente
+                $shopifyOrderId = (string)($order['id'] ?? '');
+                Log::channel('single')->info("💾 Guardando boleta con shopify_order_id: {$shopifyOrderId}");
+
                 // Guardar boleta en base de datos
                 $boleta = \App\Models\Boleta::create([
-                    'user_id' => 1, // Usuario del sistema (puedes ajustar esto)
+                    'user_id' => $config->user_id, // Usuario del cliente
+                    'shopify_order_id' => $shopifyOrderId, // AGREGADO: ID de Shopify para buscar en reembolsos
                     'lioren_id' => $result['id'] ?? null,
                     'tipodoc' => $result['tipodoc'] ?? '39',
                     'folio' => $result['folio'] ?? null,
@@ -992,12 +1041,19 @@ class IntegracionController extends Controller
                     'monto_exento' => $result['montoexento'] ?? 0,
                     'monto_iva' => $result['montoiva'] ?? 0,
                     'monto_total' => $result['montototal'] ?? 0,
-                    'pdf_base64' => $result['pdf'] ?? null,
-                    'xml_base64' => $result['xml'] ?? null,
                     'detalles' => $result['detalles'] ?? $detalles,
                     'observaciones' => 'Pedido Shopify #' . ($order['order_number'] ?? $order['id']),
                     'status' => 'emitida',
                 ]);
+
+                // Guardar PDF y XML como archivos
+                if (isset($result['pdf'])) {
+                    $boleta->pdf_path = $boleta->savePdfFromBase64($result['pdf']);
+                }
+                if (isset($result['xml'])) {
+                    $boleta->xml_path = $boleta->saveXmlFromBase64($result['xml']);
+                }
+                $boleta->save();
 
                 Log::channel('single')->info("✅ Boleta #{$boleta->folio} emitida exitosamente para pedido Shopify #{$order['order_number']}");
 
@@ -1014,7 +1070,7 @@ class IntegracionController extends Controller
 
                 // Guardar error en BD
                 \App\Models\Boleta::create([
-                    'user_id' => 1,
+                    'user_id' => $config->user_id,
                     'fecha' => now()->format('Y-m-d'),
                     'receptor_rut' => $rut,
                     'receptor_nombre' => $customerName,
@@ -1176,13 +1232,20 @@ class IntegracionController extends Controller
                     'monto_exento' => $result['montoexento'] ?? 0,
                     'monto_iva' => $result['montoiva'] ?? 0,
                     'monto_total' => $result['montototal'] ?? 0,
-                    'pdf_base64' => $result['pdf'] ?? null,
-                    'xml_base64' => $result['xml'] ?? null,
                     'detalles' => $result['detalles'] ?? $detalles,
                     'pagos' => $result['pagos'] ?? null,
                     'observaciones' => $request->observaciones,
                     'status' => 'emitida',
                 ]);
+
+                // Guardar PDF y XML como archivos
+                if (isset($result['pdf'])) {
+                    $boleta->pdf_path = $boleta->savePdfFromBase64($result['pdf']);
+                }
+                if (isset($result['xml'])) {
+                    $boleta->xml_path = $boleta->saveXmlFromBase64($result['xml']);
+                }
+                $boleta->save();
 
                 return redirect()->route('integracion.boletas')
                     ->with('success', "¡Boleta #{$boleta->folio} emitida exitosamente!");
@@ -1229,15 +1292,22 @@ class IntegracionController extends Controller
     {
         $boleta = \App\Models\Boleta::findOrFail($id);
 
-        if (!$boleta->pdf_base64) {
-            abort(404, 'PDF no disponible');
+        // Intentar primero con el archivo
+        if ($boleta->pdf_path && \Storage::exists($boleta->pdf_path)) {
+            return response(\Storage::get($boleta->pdf_path))
+                ->header('Content-Type', 'application/pdf')
+                ->header('Content-Disposition', "inline; filename=boleta_{$boleta->folio}.pdf");
         }
 
-        $pdf = base64_decode($boleta->pdf_base64);
-        
-        return response($pdf)
-            ->header('Content-Type', 'application/pdf')
-            ->header('Content-Disposition', "inline; filename=boleta_{$boleta->folio}.pdf");
+        // Fallback a base64 si existe (para compatibilidad con datos antiguos)
+        if ($boleta->pdf_base64) {
+            $pdf = base64_decode($boleta->pdf_base64);
+            return response($pdf)
+                ->header('Content-Type', 'application/pdf')
+                ->header('Content-Disposition', "inline; filename=boleta_{$boleta->folio}.pdf");
+        }
+
+        abort(404, 'PDF no disponible');
     }
 
     /**
@@ -1525,6 +1595,7 @@ class IntegracionController extends Controller
         Log::channel('single')->info('=== PROCESANDO REEMBOLSO ===', [
             'refund_id' => $refund['id'] ?? null,
             'order_id' => $refund['order_id'] ?? null,
+            'order_id_type' => gettype($refund['order_id'] ?? null),
         ]);
 
         try {
@@ -1535,6 +1606,8 @@ class IntegracionController extends Controller
                 return;
             }
 
+            Log::channel('single')->info("🔍 Buscando documento original para order_id: {$orderId}");
+
             // Buscar boleta o factura original
             $factura = \App\Models\FacturaEmitida::where('shopify_order_id', $orderId)
                 ->where('status', 'emitida')
@@ -1542,10 +1615,16 @@ class IntegracionController extends Controller
 
             $boleta = null;
             if (!$factura) {
-                // Buscar por order_id en observaciones de boleta
-                $boleta = \App\Models\Boleta::where('observaciones', 'LIKE', "%{$orderId}%")
+                // Buscar boleta por shopify_order_id
+                $boleta = \App\Models\Boleta::where('shopify_order_id', $orderId)
                     ->where('status', 'emitida')
                     ->first();
+                
+                if ($boleta) {
+                    Log::channel('single')->info("✅ Boleta encontrada: Folio {$boleta->folio}");
+                } else {
+                    Log::channel('single')->warning("❌ No se encontró boleta con shopify_order_id: {$orderId}");
+                }
             }
 
             if (!$boleta && !$factura) {
@@ -1594,6 +1673,81 @@ class IntegracionController extends Controller
     }
 
     /**
+     * Obtener comunas desde Lioren con cache (24 horas)
+     */
+    private function obtenerComunas($api_key)
+    {
+        return \Cache::remember('lioren_comunas', 86400, function () use ($api_key) {
+            try {
+                $response = Http::withHeaders([
+                    'Authorization' => "Bearer {$api_key}",
+                    'Accept' => 'application/json',
+                ])->timeout(10)->get('https://www.lioren.cl/api/comunas');
+
+                if ($response->successful()) {
+                    return $response->json();
+                }
+            } catch (\Exception $e) {
+                Log::channel('single')->error('Error obteniendo comunas: ' . $e->getMessage());
+            }
+            return [];
+        });
+    }
+
+    /**
+     * Normalizar nombre de comuna/ciudad (quita acentos, mayúsculas, espacios)
+     */
+    private function normalizarNombre($nombre)
+    {
+        $nombre = mb_strtolower($nombre, 'UTF-8');
+        $nombre = str_replace(
+            ['á', 'é', 'í', 'ó', 'ú', 'ñ', 'ü'],
+            ['a', 'e', 'i', 'o', 'u', 'n', 'u'],
+            $nombre
+        );
+        $nombre = preg_replace('/\s+/', ' ', $nombre);
+        return trim($nombre);
+    }
+
+    /**
+     * Buscar ID de comuna por nombre (fuzzy search)
+     */
+    private function buscarComunaId($nombreComuna, $api_key)
+    {
+        $comunas = $this->obtenerComunas($api_key);
+        
+        if (empty($comunas)) {
+            return 13101; // Santiago por defecto si falla
+        }
+
+        $nombreBuscado = $this->normalizarNombre($nombreComuna);
+        
+        // Búsqueda exacta
+        foreach ($comunas as $comuna) {
+            if ($this->normalizarNombre($comuna['nombre'] ?? '') === $nombreBuscado) {
+                return $comuna['id'];
+            }
+        }
+        
+        // Búsqueda parcial (fuzzy)
+        foreach ($comunas as $comuna) {
+            $nombreComuna = $this->normalizarNombre($comuna['nombre'] ?? '');
+            if (strpos($nombreComuna, $nombreBuscado) !== false || strpos($nombreBuscado, $nombreComuna) !== false) {
+                return $comuna['id'];
+            }
+        }
+        
+        // Fallback: Santiago
+        foreach ($comunas as $comuna) {
+            if ($this->normalizarNombre($comuna['nombre'] ?? '') === 'santiago') {
+                return $comuna['id'];
+            }
+        }
+        
+        return 13101; // ID hardcoded de Santiago como último recurso
+    }
+
+    /**
      * Emitir Nota de Crédito en Lioren
      */
     private function emitirNotaCredito($api_key, $config, $tipoDocOriginal, $folioOriginal, $rutReceptor, $razonSocial, $montoTotal, $orderId, $orderNumber, $glosa)
@@ -1608,6 +1762,9 @@ class IntegracionController extends Controller
             // Calcular monto neto (sin IVA)
             $montoNeto = round($montoTotal / 1.19, 2);
 
+            // Obtener ID de comuna válido desde API de Lioren
+            $comunaId = $this->buscarComunaId('Santiago', $api_key);
+
             // Preparar datos de la Nota de Crédito
             $notaCreditoData = [
                 'emisor' => [
@@ -1618,7 +1775,7 @@ class IntegracionController extends Controller
                     'rut' => str_replace('.', '', $rutReceptor),
                     'rs' => substr($razonSocial, 0, 100),
                     'giro' => 'Comercio',
-                    'comuna' => 13101, // Santiago Centro por defecto
+                    'comuna' => $comunaId,
                     'ciudad' => 131, // Santiago
                     'direccion' => 'Sin dirección',
                 ],
@@ -1657,7 +1814,7 @@ class IntegracionController extends Controller
                 $result = $response->json();
 
                 // Guardar Nota de Crédito en base de datos
-                \App\Models\NotaCredito::create([
+                $notaCredito = \App\Models\NotaCredito::create([
                     'shopify_order_id' => $orderId,
                     'shopify_order_number' => $orderNumber,
                     'tipo_documento_original' => $tipoDocOriginal,
@@ -1669,12 +1826,19 @@ class IntegracionController extends Controller
                     'monto_neto' => $result['montoneto'] ?? 0,
                     'monto_iva' => $result['montoiva'] ?? 0,
                     'monto_total' => $result['montototal'] ?? 0,
-                    'pdf_base64' => $result['pdf'] ?? null,
-                    'xml_base64' => $result['xml'] ?? null,
                     'status' => 'emitida',
                     'glosa' => $glosa,
                     'emitida_at' => now(),
                 ]);
+
+                // Guardar PDF y XML como archivos
+                if (isset($result['pdf'])) {
+                    $notaCredito->pdf_path = $notaCredito->savePdfFromBase64($result['pdf']);
+                }
+                if (isset($result['xml'])) {
+                    $notaCredito->xml_path = $notaCredito->saveXmlFromBase64($result['xml']);
+                }
+                $notaCredito->save();
 
                 Log::channel('single')->info("✅ Nota de Crédito #{$result['folio']} emitida exitosamente");
 
@@ -1729,15 +1893,22 @@ class IntegracionController extends Controller
     {
         $notaCredito = \App\Models\NotaCredito::findOrFail($id);
 
-        if (!$notaCredito->pdf_base64) {
-            abort(404, 'PDF no disponible');
+        // Intentar primero con el archivo
+        if ($notaCredito->pdf_path && \Storage::exists($notaCredito->pdf_path)) {
+            return response(\Storage::get($notaCredito->pdf_path))
+                ->header('Content-Type', 'application/pdf')
+                ->header('Content-Disposition', "inline; filename=nota_credito_{$notaCredito->folio}.pdf");
         }
 
-        $pdf = base64_decode($notaCredito->pdf_base64);
-        
-        return response($pdf)
-            ->header('Content-Type', 'application/pdf')
-            ->header('Content-Disposition', "inline; filename=nota_credito_{$notaCredito->folio}.pdf");
+        // Fallback a base64 si existe (para compatibilidad con datos antiguos)
+        if ($notaCredito->pdf_base64) {
+            $pdf = base64_decode($notaCredito->pdf_base64);
+            return response($pdf)
+                ->header('Content-Type', 'application/pdf')
+                ->header('Content-Disposition', "inline; filename=nota_credito_{$notaCredito->folio}.pdf");
+        }
+
+        abort(404, 'PDF no disponible');
     }
 
     /**

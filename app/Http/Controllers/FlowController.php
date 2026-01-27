@@ -5,6 +5,9 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use App\Models\Payment;
+use App\Models\Suscripcion;
+use App\Models\Plan;
 
 class FlowController extends Controller
 {
@@ -125,15 +128,88 @@ class FlowController extends Controller
         $paymentStatus = $this->getPaymentStatus($token);
 
         if ($paymentStatus && $paymentStatus['status'] == 2) {
-            // Actualizar tu base de datos
-            // Order::where('commerce_order', $paymentStatus['commerceOrder'])
-            //     ->update(['status' => 'paid', 'flow_order' => $paymentStatus['flowOrder']]);
+            // Extraer datos del optional
+            $optional = $paymentStatus['optional'] ?? '';
+            parse_str(str_replace(['|', ':'], ['&', '='], $optional), $optionalData);
+            
+            $planId = $optionalData['plan_id'] ?? null;
+            $userId = $optionalData['user_id'] ?? null;
+
+            // Guardar pago en BD
+            $payment = Payment::create([
+                'order_id' => $paymentStatus['commerceOrder'],
+                'flow_token' => $token,
+                'subject' => $paymentStatus['subject'],
+                'amount' => $paymentStatus['amount'],
+                'currency' => $paymentStatus['currency'],
+                'email' => $paymentStatus['payer'],
+                'payment_method' => $paymentStatus['paymentMethod'] ?? 0,
+                'status' => $paymentStatus['status'],
+                'flow_response' => $paymentStatus,
+                'paid_at' => now(),
+                'user_id' => $userId,
+            ]);
+
+            // Si es pago de plan, crear o renovar suscripción
+            if ($planId && $userId) {
+                $this->crearORenovarSuscripcion($userId, $planId, $payment);
+            }
 
             Log::info('Pago confirmado', $paymentStatus);
         }
 
         // IMPORTANTE: Devolver HTTP 200
         return response('OK', 200);
+    }
+
+    /**
+     * Crear o renovar suscripción
+     */
+    private function crearORenovarSuscripcion($userId, $planId, Payment $payment)
+    {
+        $fechaInicio = now();
+        $fechaFin = now()->addDays(30);
+        $proximoPago = $fechaFin->copy();
+
+        // Buscar suscripción activa del usuario para este plan
+        $suscripcion = Suscripcion::where('user_id', $userId)
+            ->where('plan_id', $planId)
+            ->where('estado', 'activa')
+            ->first();
+
+        if ($suscripcion) {
+            // Renovar: extender 30 días desde la fecha_fin actual
+            $fechaInicio = $suscripcion->fecha_fin;
+            $fechaFin = $fechaInicio->copy()->addDays(30);
+            $proximoPago = $fechaFin->copy();
+
+            $suscripcion->update([
+                'fecha_fin' => $fechaFin,
+                'proximo_pago' => $proximoPago,
+                'estado' => 'activa',
+            ]);
+
+            Log::info("Suscripción renovada", ['suscripcion_id' => $suscripcion->id]);
+        } else {
+            // Crear nueva suscripción
+            $suscripcion = Suscripcion::create([
+                'user_id' => $userId,
+                'plan_id' => $planId,
+                'estado' => 'activa',
+                'fecha_inicio' => $fechaInicio,
+                'fecha_fin' => $fechaFin,
+                'proximo_pago' => $proximoPago,
+            ]);
+
+            Log::info("Nueva suscripción creada", ['suscripcion_id' => $suscripcion->id]);
+        }
+
+        // Actualizar payment con datos de suscripción
+        $payment->update([
+            'suscripcion_id' => $suscripcion->id,
+            'periodo_inicio' => $fechaInicio,
+            'periodo_fin' => $fechaFin,
+        ]);
     }
 
     /**
@@ -182,7 +258,7 @@ class FlowController extends Controller
     }
 
     /**
-     * Crear un pago para un plan específico (versión sin BD)
+     * Crear un pago para un plan específico
      */
     public function createPlanPayment(Request $request)
     {
@@ -192,31 +268,32 @@ class FlowController extends Controller
             'plan_id' => 'required|numeric',
         ]);
 
-        // Simular datos del plan (en producción esto vendría de la BD)
-        $planData = [
-            'id' => $request->plan_id,
-            'nombre' => 'Plan Demo',
-            'empresa' => 'Empresa Demo',
-            'precio' => 50 // USD
-        ];
+        // Obtener plan desde la base de datos
+        $plan = \App\Models\Plan::with('empresa')->find($request->plan_id);
 
-        // Convertir precio de USD a CLP
-        $amountCLP = $planData['precio'] * 800;
+        if (!$plan) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Plan no encontrado'
+            ], 404);
+        }
+
+        // Obtener email del usuario autenticado
+        $userEmail = auth()->user()->email ?? 'cliente@example.com';
 
         // Parámetros requeridos por Flow
         $params = [
             'apiKey' => $this->apiKey,
             'commerceOrder' => uniqid('PLAN-'), // ID único de tu orden
-            'subject' => 'Plan ' . $planData['nombre'] . ' - ' . $planData['empresa'],
-            'currency' => 'CLP',
-            'amount' => $amountCLP,
-            'email' => 'elianfa3000@gmail.com',
+            'subject' => 'Plan ' . $plan->nombre . ' - ' . $plan->empresa->nombre,
+            'currency' => $plan->moneda, // CLP o UF desde la BD
+            'amount' => $plan->precio,
+            'email' => $userEmail,
             'urlConfirmation' => route('flow.confirmation'),
             'urlReturn' => route('flow.return'),
-            'optional' => json_encode([
-                'plan_id' => $planData['id'],
-                'user_id' => auth()->id(),
-            ]),
+            // optional se usa internamente para recuperar datos después del pago
+            // Flow puede mostrarlo en la página, así que lo dejamos limpio
+            'optional' => 'plan_id:' . $plan->id . '|user_id:' . auth()->id(),
         ];
 
         // Firmar parámetros
@@ -240,7 +317,13 @@ class FlowController extends Controller
                     'success' => true,
                     'data' => $data,
                     'redirect_url' => $checkoutUrl,
-                    'plan_data' => $planData
+                    'plan_data' => [
+                        'id' => $plan->id,
+                        'nombre' => $plan->nombre,
+                        'empresa' => $plan->empresa->nombre,
+                        'precio' => $plan->precio,
+                        'moneda' => $plan->moneda
+                    ]
                 ]);
             }
 

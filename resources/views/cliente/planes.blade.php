@@ -195,7 +195,7 @@
                         <div class="plan-precio">
                             ${{ number_format($plan->precio, 2) }}
                         </div>
-                        <div class="plan-precio-label">USD / mes</div>
+                        <div class="plan-precio-label">{{ $plan->moneda ?? 'CLP' }} / mes</div>
                     </div>
 
                     <!-- Body del Plan -->
@@ -217,7 +217,7 @@
 
                         <!-- Botones de Acción -->
                         <div style="display: flex; gap: 0.75rem; margin-bottom: 0.75rem;">
-                            <button onclick="verInformacion({{ $plan->id }}, '{{ $plan->nombre }}', '{{ addslashes($plan->descripcion) }}', '{{ $plan->empresa->nombre }}', {{ $plan->precio }}, {{ json_encode($plan->caracteristicas) }})" style="flex: 1; padding: 0.75rem; background: #f3f4f6; color: #374151; font-weight: 700; font-size: 0.875rem; text-transform: uppercase; border: 2px solid #d1d5db; border-radius: 0.75rem; cursor: pointer; transition: all 0.3s;" onmouseover="this.style.background='#e5e7eb'; this.style.borderColor='#9ca3af'" onmouseout="this.style.background='#f3f4f6'; this.style.borderColor='#d1d5db'">
+                            <button onclick="verInformacion({{ $plan->id }}, '{{ $plan->nombre }}', '{{ addslashes($plan->descripcion) }}', '{{ $plan->empresa->nombre }}', {{ $plan->precio }}, '{{ $plan->moneda ?? 'CLP' }}', {{ json_encode($plan->caracteristicas) }})" style="flex: 1; padding: 0.75rem; background: #f3f4f6; color: #374151; font-weight: 700; font-size: 0.875rem; text-transform: uppercase; border: 2px solid #d1d5db; border-radius: 0.75rem; cursor: pointer; transition: all 0.3s;" onmouseover="this.style.background='#e5e7eb'; this.style.borderColor='#9ca3af'" onmouseout="this.style.background='#f3f4f6'; this.style.borderColor='#d1d5db'">
                                 <i class="fas fa-info-circle"></i> Más Info
                             </button>
                         </div>
@@ -463,14 +463,14 @@
         let planNombreTemp = '';
         let empresaTemp = '';
 
-        function verInformacion(planId, nombre, descripcion, empresa, precio, caracteristicas) {
+        function verInformacion(planId, nombre, descripcion, empresa, precio, moneda, caracteristicas) {
             planIdSeleccionado = planId;
             planNombreTemp = nombre;
             empresaTemp = empresa;
 
             document.getElementById('infoModalTitle').textContent = nombre;
             document.getElementById('infoEmpresa').textContent = empresa;
-            document.getElementById('infoPrecio').textContent = '$' + parseFloat(precio).toFixed(2) + ' USD/mes';
+            document.getElementById('infoPrecio').textContent = '$' + parseFloat(precio).toFixed(2) + ' ' + moneda + '/mes';
             document.getElementById('infoDescripcion').textContent = descripcion;
 
             // Características
@@ -569,7 +569,8 @@
                 plan_id: planIdSeleccionado,
                 plan_nombre: planNombreTemp,
                 empresa: empresaTemp,
-                precio: planSeleccionado ? planSeleccionado.precio : 0
+                precio: planSeleccionado ? planSeleccionado.precio : 0,
+                moneda: planSeleccionado ? (planSeleccionado.moneda || 'CLP') : 'CLP'
             };
 
             console.log('wizardData creado:', wizardData);
@@ -588,7 +589,7 @@
             } else if (paso === 2) {
                 document.getElementById('wizardResumenPlan').textContent = wizardData.plan_nombre;
                 document.getElementById('wizardResumenEmpresa').textContent = wizardData.empresa;
-                document.getElementById('wizardResumenPrecio').textContent = '$' + wizardData.precio + ' USD/mes';
+                document.getElementById('wizardResumenPrecio').textContent = '$' + wizardData.precio + ' ' + wizardData.moneda + '/mes';
             }
         }
 

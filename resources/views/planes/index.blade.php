@@ -20,6 +20,14 @@
                         <div style="background: #10b981; color: white; padding: 1rem; border-radius: 0.5rem; margin-bottom: 1rem;">
                             {{ session('success') }}
                         </div>
+                        <script>
+                            // Forzar refresh completo si no tiene el parámetro refresh
+                            if (!window.location.search.includes('refresh=')) {
+                                const url = new URL(window.location);
+                                url.searchParams.set('refresh', Date.now());
+                                window.location.replace(url.toString());
+                            }
+                        </script>
                     @endif
 
                     <!-- Buscador -->
@@ -46,7 +54,7 @@
                                 <tr style="background: #f3f4f6;">
                                     <th style="padding: 0.75rem; text-align: left; font-weight: 600; color: #374151;">Nombre</th>
                                     <th style="padding: 0.75rem; text-align: left; font-weight: 600; color: #374151;">Empresa</th>
-                                    <th style="padding: 0.75rem; text-align: left; font-weight: 600; color: #374151;">Precio (USD)</th>
+                                    <th style="padding: 0.75rem; text-align: left; font-weight: 600; color: #374151;">Precio</th>
                                     <th style="padding: 0.75rem; text-align: left; font-weight: 600; color: #374151;">Estado</th>
                                     <th style="padding: 0.75rem; text-align: left; font-weight: 600; color: #374151;">Acciones</th>
                                 </tr>
@@ -60,15 +68,15 @@
                                                 {{ $plan->empresa->nombre }}
                                             </span>
                                         </td>
-                                        <td style="padding: 0.75rem; font-weight: 600;">${{ number_format($plan->precio, 2) }}</td>
+                                        <td style="padding: 0.75rem; font-weight: 600;">${{ number_format($plan->precio, 2) }} {{ $plan->moneda ?? 'CLP' }}</td>
                                         <td style="padding: 0.75rem;">
                                             <span style="padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; {{ $plan->activo ? 'background: #d1fae5; color: #065f46;' : 'background: #fee2e2; color: #991b1b;' }}">
                                                 {{ $plan->activo ? 'Activo' : 'Inactivo' }}
                                             </span>
                                         </td>
                                         <td style="padding: 0.75rem;">
-                                            <button onclick="viewPlan('{{ $plan->nombre }}', '{{ addslashes($plan->descripcion) }}', '{{ $plan->empresa->nombre }}', {{ $plan->precio }}, {{ $plan->activo ? 'true' : 'false' }}, {{ json_encode($plan->caracteristicas) }})" style="color: #10b981; background: none; border: none; cursor: pointer; margin-right: 1rem; font-weight: 600;"><i class="fas fa-eye"></i> Ver</button>
-                                            <button onclick="editPlan({{ $plan->id }}, '{{ $plan->nombre }}', '{{ addslashes($plan->descripcion) }}', {{ $plan->empresa_id }}, {{ $plan->precio }}, {{ $plan->activo ? 'true' : 'false' }}, {{ json_encode($plan->caracteristicas) }})" style="color: #3b82f6; background: none; border: none; cursor: pointer; margin-right: 1rem; font-weight: 600;"><i class="fas fa-edit"></i> Editar</button>
+                                            <button onclick="viewPlan('{{ $plan->nombre }}', '{{ addslashes($plan->descripcion) }}', '{{ $plan->empresa->nombre }}', {{ $plan->precio }}, '{{ $plan->moneda ?? 'CLP' }}', {{ $plan->activo ? 'true' : 'false' }}, {{ json_encode($plan->caracteristicas) }})" style="color: #10b981; background: none; border: none; cursor: pointer; margin-right: 1rem; font-weight: 600;"><i class="fas fa-eye"></i> Ver</button>
+                                            <button onclick="editPlan({{ $plan->id }}, '{{ $plan->nombre }}', '{{ addslashes($plan->descripcion) }}', {{ $plan->empresa_id }}, {{ $plan->precio }}, '{{ $plan->moneda ?? 'CLP' }}', {{ $plan->activo ? 'true' : 'false' }}, {{ json_encode($plan->caracteristicas) }}, {{ $plan->facturacion_enabled ? 'true' : 'false' }}, {{ $plan->shopify_visibility_enabled ? 'true' : 'false' }}, {{ $plan->notas_credito_enabled ? 'true' : 'false' }}, {{ $plan->order_limit_enabled ? 'true' : 'false' }}, {{ $plan->monthly_order_limit ?? 'null' }})" style="color: #3b82f6; background: none; border: none; cursor: pointer; margin-right: 1rem; font-weight: 600;"><i class="fas fa-edit"></i> Editar</button>
                                             <form action="{{ route('planes.destroy', $plan) }}" method="POST" style="display: inline;">
                                                 @csrf
                                                 @method('DELETE')
@@ -146,16 +154,74 @@
                 </div>
 
                 <div style="margin-bottom: 1.5rem;">
-                    <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #374151; margin-bottom: 0.5rem;"><i class="fas fa-dollar-sign"></i> Precio (USD) *</label>
+                    <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #374151; margin-bottom: 0.5rem;"><i class="fas fa-dollar-sign"></i> Precio *</label>
                     <input type="number" name="precio" id="precio" required step="0.01" min="0" style="width: 100%; padding: 0.75rem; border: 2px solid #d1d5db; border-radius: 0.5rem; font-size: 0.875rem; transition: all 0.2s;" onfocus="this.style.borderColor='#FFC107'; this.style.boxShadow='0 0 0 3px rgba(255, 193, 7, 0.1)'" onblur="this.style.borderColor='#d1d5db'; this.style.boxShadow='none'">
                 </div>
 
                 <div style="margin-bottom: 1.5rem;">
+                    <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #374151; margin-bottom: 0.5rem;"><i class="fas fa-coins"></i> Moneda *</label>
+                    <select name="moneda" id="moneda" required style="width: 100%; padding: 0.75rem; border: 2px solid #d1d5db; border-radius: 0.5rem; font-size: 0.875rem; transition: all 0.2s;" onfocus="this.style.borderColor='#FFC107'; this.style.boxShadow='0 0 0 3px rgba(255, 193, 7, 0.1)'" onblur="this.style.borderColor='#d1d5db'; this.style.boxShadow='none'">
+                        <option value="CLP">CLP (Peso Chileno)</option>
+                        <option value="UF">UF (Unidad de Fomento)</option>
+                    </select>
+                    <p style="font-size: 0.75rem; color: #6b7280; margin-top: 0.5rem;"><i class="fas fa-info-circle"></i> Selecciona la moneda en la que se cobrará el plan</p>
+                </div>
+
+                <div style="margin-bottom: 1.5rem;">
                     <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #374151; margin-bottom: 0.5rem;"><i class="fas fa-list-check"></i> Características *</label>
-                    <div id="caracteristicasContainer"></div>
-                    <button type="button" onclick="addCaracteristica()" style="margin-top: 0.5rem; padding: 0.5rem 1rem; background: #f3f4f6; color: #374151; font-weight: 600; border: none; border-radius: 0.375rem; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#e5e7eb'" onmouseout="this.style.background='#f3f4f6'">
-                        <i class="fas fa-plus"></i> Agregar Característica
-                    </button>
+                    
+                    <!-- Características para Lioren (checkboxes) -->
+                    <div id="caracteristicasLioren" style="display: none;">
+                        <div style="background: #f9fafb; padding: 1.5rem; border-radius: 0.5rem; border: 2px solid #FFC107;">
+                            <div style="margin-bottom: 1rem;">
+                                <label style="display: flex; align-items: center; cursor: pointer; padding: 0.75rem; background: white; border-radius: 0.5rem; transition: all 0.2s;" onmouseover="this.style.background='#fef3c7'" onmouseout="this.style.background='white'">
+                                    <input type="checkbox" name="facturacion_enabled" id="facturacion_enabled" value="1" style="width: 1.25rem; height: 1.25rem; margin-right: 0.75rem; cursor: pointer;">
+                                    <span style="font-size: 0.875rem; font-weight: 600; color: #374151;">✅ Habilitar emisión de facturas electrónicas</span>
+                                </label>
+                            </div>
+                            
+                            <div style="margin-bottom: 1rem;">
+                                <label style="display: flex; align-items: center; cursor: pointer; padding: 0.75rem; background: white; border-radius: 0.5rem; transition: all 0.2s;" onmouseover="this.style.background='#fef3c7'" onmouseout="this.style.background='white'">
+                                    <input type="checkbox" name="shopify_visibility_enabled" id="shopify_visibility_enabled" value="1" style="width: 1.25rem; height: 1.25rem; margin-right: 0.75rem; cursor: pointer;">
+                                    <span style="font-size: 0.875rem; font-weight: 600; color: #374151;">👁️ Visibilidad desde Shopify</span>
+                                </label>
+                            </div>
+                            
+                            <div style="margin-bottom: 1rem;">
+                                <label style="display: flex; align-items: center; cursor: pointer; padding: 0.75rem; background: white; border-radius: 0.5rem; transition: all 0.2s;" onmouseover="this.style.background='#fef3c7'" onmouseout="this.style.background='white'">
+                                    <input type="checkbox" name="notas_credito_enabled" id="notas_credito_enabled" value="1" style="width: 1.25rem; height: 1.25rem; margin-right: 0.75rem; cursor: pointer;">
+                                    <span style="font-size: 0.875rem; font-weight: 600; color: #374151;">🔄 Notas de Crédito Automáticas</span>
+                                </label>
+                            </div>
+                            
+                            <div style="margin-bottom: 1rem;">
+                                <label style="display: flex; align-items: center; cursor: pointer; padding: 0.75rem; background: white; border-radius: 0.5rem; transition: all 0.2s;" onmouseover="this.style.background='#fef3c7'" onmouseout="this.style.background='white'">
+                                    <input type="checkbox" name="order_limit_enabled" id="order_limit_enabled" value="1" onchange="toggleOrderLimit()" style="width: 1.25rem; height: 1.25rem; margin-right: 0.75rem; cursor: pointer;">
+                                    <span style="font-size: 0.875rem; font-weight: 600; color: #374151;">📊 Límite de Pedidos Mensuales</span>
+                                </label>
+                                
+                                <div id="orderLimitInput" style="display: none; margin-top: 0.75rem; margin-left: 2rem;">
+                                    <label style="display: block; font-size: 0.75rem; font-weight: 600; color: #6b7280; margin-bottom: 0.5rem;">Cantidad de pedidos por mes:</label>
+                                    <input type="number" name="monthly_order_limit" id="monthly_order_limit" min="1" placeholder="Ej: 100" style="width: 100%; padding: 0.75rem; border: 2px solid #d1d5db; border-radius: 0.5rem; font-size: 0.875rem;">
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <label style="display: flex; align-items: center; cursor: pointer; padding: 0.75rem; background: white; border-radius: 0.5rem; transition: all 0.2s;" onmouseover="this.style.background='#fef3c7'" onmouseout="this.style.background='white'">
+                                    <input type="checkbox" name="no_order_limit" id="no_order_limit" value="1" checked onchange="toggleNoLimit()" style="width: 1.25rem; height: 1.25rem; margin-right: 0.75rem; cursor: pointer;">
+                                    <span style="font-size: 0.875rem; font-weight: 600; color: #374151;">♾️ Sin límite de pedidos</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Características para otras empresas (texto libre) -->
+                    <div id="caracteristicasOtras">
+                        <div id="caracteristicasContainer"></div>
+                        <button type="button" onclick="addCaracteristica()" style="margin-top: 0.5rem; padding: 0.5rem 1rem; background: #f3f4f6; color: #374151; font-weight: 600; border: none; border-radius: 0.375rem; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#e5e7eb'" onmouseout="this.style.background='#f3f4f6'">
+                            <i class="fas fa-plus"></i> Agregar Característica
+                        </button>
+                    </div>
                 </div>
 
                 <div style="margin-bottom: 1.5rem;">
@@ -263,6 +329,80 @@
 
     <script>
         let caracteristicaCount = 0;
+        const liorenEmpresaId = {{ \App\Models\Empresa::where('slug', 'lioren')->first()->id ?? 1 }};
+
+        // Detectar cambio de empresa
+        document.addEventListener('DOMContentLoaded', function() {
+            const empresaSelect = document.getElementById('empresa_id');
+            empresaSelect.addEventListener('change', toggleCaracteristicas);
+        });
+
+        function toggleCaracteristicas() {
+            const empresaSelect = document.getElementById('empresa_id');
+            if (!empresaSelect || !empresaSelect.value) {
+                // Si no hay empresa seleccionada, mostrar características libres
+                document.getElementById('caracteristicasLioren').style.display = 'none';
+                document.getElementById('caracteristicasOtras').style.display = 'block';
+                // Habilitar required en características libres
+                document.querySelectorAll('#caracteristicasContainer input[name="caracteristicas[]"]').forEach(input => {
+                    input.required = true;
+                });
+                return;
+            }
+            
+            const empresaId = parseInt(empresaSelect.value);
+            const isLioren = empresaId === liorenEmpresaId;
+            
+            console.log('Toggle características:', { empresaId, liorenEmpresaId, isLioren });
+            
+            document.getElementById('caracteristicasLioren').style.display = isLioren ? 'block' : 'none';
+            document.getElementById('caracteristicasOtras').style.display = isLioren ? 'none' : 'block';
+            
+            // Manejar required según visibilidad
+            if (isLioren) {
+                // Deshabilitar required en características libres cuando están ocultas
+                document.querySelectorAll('#caracteristicasContainer input[name="caracteristicas[]"]').forEach(input => {
+                    input.required = false;
+                });
+            } else {
+                // Habilitar required en características libres cuando están visibles
+                document.querySelectorAll('#caracteristicasContainer input[name="caracteristicas[]"]').forEach(input => {
+                    input.required = true;
+                });
+                // Si no hay características, agregar una
+                if (document.getElementById('caracteristicasContainer').children.length === 0) {
+                    addCaracteristica();
+                }
+            }
+        }
+
+        function toggleOrderLimit() {
+            const checked = document.getElementById('order_limit_enabled').checked;
+            const noLimitCheckbox = document.getElementById('no_order_limit');
+            const orderLimitInput = document.getElementById('orderLimitInput');
+            
+            if (checked) {
+                noLimitCheckbox.checked = false;
+                orderLimitInput.style.display = 'block';
+                document.getElementById('monthly_order_limit').required = true;
+            } else {
+                orderLimitInput.style.display = 'none';
+                document.getElementById('monthly_order_limit').required = false;
+                document.getElementById('monthly_order_limit').value = '';
+            }
+        }
+
+        function toggleNoLimit() {
+            const checked = document.getElementById('no_order_limit').checked;
+            const orderLimitCheckbox = document.getElementById('order_limit_enabled');
+            
+            if (checked) {
+                orderLimitCheckbox.checked = false;
+                document.getElementById('orderLimitInput').style.display = 'none';
+                document.getElementById('monthly_order_limit').required = false;
+                document.getElementById('monthly_order_limit').value = '';
+            }
+        }
 
         function openModal() {
             document.getElementById('planModal').style.display = 'block';
@@ -272,7 +412,22 @@
             document.getElementById('planForm').reset();
             document.getElementById('caracteristicasContainer').innerHTML = '';
             caracteristicaCount = 0;
+            
+            // Reset checkboxes de Lioren
+            document.getElementById('facturacion_enabled').checked = false;
+            document.getElementById('shopify_visibility_enabled').checked = false;
+            document.getElementById('notas_credito_enabled').checked = false;
+            document.getElementById('order_limit_enabled').checked = false;
+            document.getElementById('no_order_limit').checked = true;
+            document.getElementById('orderLimitInput').style.display = 'none';
+            
+            // Mostrar características de otras empresas por defecto
+            document.getElementById('caracteristicasLioren').style.display = 'none';
+            document.getElementById('caracteristicasOtras').style.display = 'block';
             addCaracteristica();
+            
+            // Esperar un momento y verificar la empresa seleccionada
+            setTimeout(toggleCaracteristicas, 100);
         }
 
         function closeModal() {
@@ -293,28 +448,58 @@
             caracteristicaCount++;
         }
 
-        function editPlan(id, nombre, descripcion, empresa_id, precio, activo, caracteristicas) {
+        function editPlan(id, nombre, descripcion, empresa_id, precio, moneda, activo, caracteristicas, facturacion_enabled, shopify_visibility_enabled, notas_credito_enabled, order_limit_enabled, monthly_order_limit) {
             document.getElementById('planModal').style.display = 'block';
             document.getElementById('modalTitle').innerHTML = '<i class="fas fa-edit"></i> Editar Plan';
-            document.getElementById('planForm').action = '{{ route("planes.index") }}/' + id;
+            document.getElementById('planForm').action = '/planes/' + id;
             document.getElementById('formMethod').value = 'PUT';
             
             document.getElementById('nombre').value = nombre;
             document.getElementById('descripcion').value = descripcion;
             document.getElementById('empresa_id').value = empresa_id;
             document.getElementById('precio').value = precio;
+            document.getElementById('moneda').value = moneda;
             document.getElementById('activo').checked = activo;
             
-            document.getElementById('caracteristicasContainer').innerHTML = '';
-            caracteristicaCount = 0;
-            caracteristicas.forEach(car => addCaracteristica(car));
+            const isLioren = parseInt(empresa_id) === liorenEmpresaId;
+            
+            if (isLioren) {
+                // Mostrar checkboxes de Lioren
+                document.getElementById('caracteristicasLioren').style.display = 'block';
+                document.getElementById('caracteristicasOtras').style.display = 'none';
+                
+                // Cargar valores de los checkboxes
+                document.getElementById('facturacion_enabled').checked = facturacion_enabled;
+                document.getElementById('shopify_visibility_enabled').checked = shopify_visibility_enabled;
+                document.getElementById('notas_credito_enabled').checked = notas_credito_enabled;
+                document.getElementById('order_limit_enabled').checked = order_limit_enabled;
+                
+                // Manejar límite de pedidos
+                if (order_limit_enabled && monthly_order_limit) {
+                    document.getElementById('no_order_limit').checked = false;
+                    document.getElementById('orderLimitInput').style.display = 'block';
+                    document.getElementById('monthly_order_limit').value = monthly_order_limit;
+                } else {
+                    document.getElementById('no_order_limit').checked = !order_limit_enabled;
+                    document.getElementById('orderLimitInput').style.display = 'none';
+                    document.getElementById('monthly_order_limit').value = '';
+                }
+            } else {
+                // Mostrar características libres
+                document.getElementById('caracteristicasLioren').style.display = 'none';
+                document.getElementById('caracteristicasOtras').style.display = 'block';
+                
+                document.getElementById('caracteristicasContainer').innerHTML = '';
+                caracteristicaCount = 0;
+                caracteristicas.forEach(car => addCaracteristica(car));
+            }
         }
 
-        function viewPlan(nombre, descripcion, empresa, precio, activo, caracteristicas) {
+        function viewPlan(nombre, descripcion, empresa, precio, moneda, activo, caracteristicas) {
             document.getElementById('viewModal').style.display = 'block';
             document.getElementById('viewModalTitle').textContent = nombre;
             document.getElementById('viewEmpresa').textContent = empresa;
-            document.getElementById('viewPrecio').textContent = '$' + parseFloat(precio).toFixed(2) + ' USD';
+            document.getElementById('viewPrecio').textContent = '$' + parseFloat(precio).toFixed(2) + ' ' + moneda;
             document.getElementById('viewDescripcion').textContent = descripcion;
             
             // Características
@@ -354,5 +539,39 @@
                 closeViewModal();
             }
         }
+
+        // Manejar el envío del formulario para asegurar que los checkboxes desmarcados se envíen como 0
+        document.getElementById('planForm').addEventListener('submit', function(e) {
+            const empresaId = parseInt(document.getElementById('empresa_id').value);
+            
+            // Solo para Lioren
+            if (empresaId === liorenEmpresaId) {
+                const checkboxes = [
+                    'facturacion_enabled',
+                    'shopify_visibility_enabled',
+                    'notas_credito_enabled',
+                    'order_limit_enabled'
+                ];
+                
+                checkboxes.forEach(function(checkboxName) {
+                    const checkbox = document.getElementById(checkboxName);
+                    
+                    // Remover cualquier hidden field previo
+                    const existingHidden = document.querySelector('input[name="' + checkboxName + '"][type="hidden"]');
+                    if (existingHidden) {
+                        existingHidden.remove();
+                    }
+                    
+                    // Si el checkbox NO está marcado, agregar un campo hidden con valor 0
+                    if (!checkbox.checked) {
+                        const hiddenInput = document.createElement('input');
+                        hiddenInput.type = 'hidden';
+                        hiddenInput.name = checkboxName;
+                        hiddenInput.value = '0';
+                        checkbox.parentNode.appendChild(hiddenInput);
+                    }
+                });
+            }
+        });
     </script>
 </x-app-layout>

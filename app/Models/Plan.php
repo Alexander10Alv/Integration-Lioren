@@ -16,12 +16,22 @@ class Plan extends Model
         'nombre',
         'descripcion',
         'caracteristicas',
+        'facturacion_enabled',
+        'shopify_visibility_enabled',
+        'notas_credito_enabled',
+        'order_limit_enabled',
+        'monthly_order_limit',
         'precio',
+        'moneda',
         'activo',
     ];
 
     protected $casts = [
         'caracteristicas' => 'array',
+        'facturacion_enabled' => 'boolean',
+        'shopify_visibility_enabled' => 'boolean',
+        'notas_credito_enabled' => 'boolean',
+        'order_limit_enabled' => 'boolean',
         'precio' => 'decimal:2',
         'activo' => 'boolean',
     ];

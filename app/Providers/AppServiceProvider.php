@@ -24,7 +24,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot()
     {
-        if (app()->environment('local')) {
+        // Forzar HTTPS para ngrok
+        if (str_contains(config('app.url'), 'ngrok')) {
             URL::forceScheme('https');
         }
     }

@@ -21,21 +21,18 @@ class Payment extends Model
         'flow_response',
         'paid_at',
         'user_id',
-        'solicitud_id', // Nueva relación
+        'solicitud_id',
+        'suscripcion_id',
+        'periodo_inicio',
+        'periodo_fin',
     ];
 
     protected $casts = [
-        'amount' => 'decimal:2',
         'flow_response' => 'array',
         'paid_at' => 'datetime',
+        'periodo_inicio' => 'date',
+        'periodo_fin' => 'date',
     ];
-
-    // Estados de pago
-    const STATUS_CREATED = 0;
-    const STATUS_PENDING = 1;
-    const STATUS_PAID = 2;
-    const STATUS_REJECTED = 3;
-    const STATUS_CANCELLED = 4;
 
     public function user()
     {
@@ -47,25 +44,23 @@ class Payment extends Model
         return $this->belongsTo(Solicitud::class);
     }
 
-    public function getStatusTextAttribute()
+    public function suscripcion()
     {
-        return match ($this->status) {
-            self::STATUS_CREATED => 'Creado',
-            self::STATUS_PENDING => 'Pendiente',
-            self::STATUS_PAID => 'Pagado',
-            self::STATUS_REJECTED => 'Rechazado',
-            self::STATUS_CANCELLED => 'Cancelado',
-            default => 'Desconocido',
-        };
+        return $this->belongsTo(Suscripcion::class);
     }
 
     public function isPaid()
     {
-        return $this->status === self::STATUS_PAID;
+        return $this->status == 2;
     }
 
     public function isPending()
     {
-        return $this->status === self::STATUS_PENDING;
+        return $this->status == 0 || $this->status == 1;
+    }
+
+    public function isFailed()
+    {
+        return $this->status == 3 || $this->status == 4;
     }
 }

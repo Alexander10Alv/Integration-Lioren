@@ -83,6 +83,10 @@
                         </x-nav-link>
                         
                         <x-nav-link :href="route('integracion.index')" :active="request()->routeIs('integracion.*')">
+                            {{ __('Integración') }}
+                        </x-nav-link>
+
+                        <x-nav-link :href="route('admin.solicitudes.pendientes-conexion')" :active="request()->routeIs('admin.solicitudes.pendientes-conexion')">
                             {{ __('Solicitudes') }}
                         </x-nav-link>
 
@@ -96,8 +100,8 @@
                             {{ __('Planes') }}
                         </x-nav-link>
 
-                        <x-nav-link :href="route('boletas.index')" :active="request()->routeIs('boletas.*')">
-                            {{ __('Boletas') }}
+                        <x-nav-link :href="route('admin.suscripciones')" :active="request()->routeIs('admin.suscripciones')">
+                            {{ __('Suscripciones') }}
                         </x-nav-link>
                     @endrole
                     
@@ -199,6 +203,10 @@
 
                 <x-responsive-nav-link :href="route('boletas.index')" :active="request()->routeIs('boletas.*')">
                     {{ __('Boletas') }}
+                </x-responsive-nav-link>
+
+                <x-responsive-nav-link :href="route('admin.suscripciones')" :active="request()->routeIs('admin.suscripciones')">
+                    {{ __('Suscripciones') }}
                 </x-responsive-nav-link>
             @endrole
             

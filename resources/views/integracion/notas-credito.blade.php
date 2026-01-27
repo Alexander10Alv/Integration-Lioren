@@ -111,7 +111,7 @@
                                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                                 @if($nc->status === 'emitida')
                                                     <div class="flex space-x-2">
-                                                        @if($nc->pdf_base64)
+                                                        @if($nc->pdf_path || $nc->pdf_base64)
                                                             <a href="{{ route('notas-credito.pdf', $nc->id) }}" 
                                                                target="_blank"
                                                                class="text-red-600 hover:text-red-900">

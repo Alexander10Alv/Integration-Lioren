@@ -23,6 +23,9 @@ class Kernel extends ConsoleKernel
         
         // Cerrar chats inactivos diariamente a las 2 AM
         $schedule->command('chats:close-inactive')->dailyAt('02:00');
+        
+        // Verificar vencimientos de suscripciones todos los días a las 00:00
+        $schedule->command('suscripciones:verificar-vencimientos')->daily();
     }
 
     /**

@@ -107,6 +107,11 @@ Route::middleware(['auth', 'role:cliente'])->prefix('cliente')->name('cliente.')
     Route::get('/planes-activos', [App\Http\Controllers\ClienteController::class, 'planesActivos'])->name('planes-activos');
     Route::get('/facturas', [App\Http\Controllers\ClienteController::class, 'facturas'])->name('facturas');
 
+    // Suscripciones y Pagos
+    Route::get('/suscripciones', [App\Http\Controllers\SuscripcionController::class, 'index'])->name('suscripciones');
+    Route::get('/suscripciones/{suscripcion}/renovar', [App\Http\Controllers\SuscripcionController::class, 'renovar'])->name('suscripciones.renovar');
+    Route::delete('/suscripciones/{suscripcion}/cancelar', [App\Http\Controllers\SuscripcionController::class, 'cancelar'])->name('suscripciones.cancelar');
+
     // Chats
     Route::get('/chats', [App\Http\Controllers\ChatController::class, 'index'])->name('chats');
     Route::post('/chats', [App\Http\Controllers\ChatController::class, 'store'])->name('chats.store');
@@ -115,6 +120,18 @@ Route::middleware(['auth', 'role:cliente'])->prefix('cliente')->name('cliente.')
     Route::post('/solicitudes', [App\Http\Controllers\SolicitudController::class, 'store'])->name('solicitudes.store');
     Route::get('/solicitudes/{solicitud}/config', [App\Http\Controllers\SolicitudController::class, 'getConfig'])->name('solicitudes.getConfig');
     Route::post('/solicitudes/{solicitud}/config', [App\Http\Controllers\SolicitudController::class, 'updateConfig'])->name('solicitudes.updateConfig');
+    
+    // Credenciales de Integración (Cliente)
+    Route::get('/solicitudes/credenciales', [App\Http\Controllers\SolicitudController::class, 'credenciales'])->name('solicitudes.credenciales');
+    Route::put('/solicitudes/{solicitud}/credenciales', [App\Http\Controllers\SolicitudController::class, 'guardarCredenciales'])->name('solicitudes.guardar-credenciales');
+    
+    // Shopify OAuth 2.0 Routes
+    Route::post('/shopify/oauth/iniciar', [App\Http\Controllers\ShopifyOAuthController::class, 'iniciarOAuth'])->name('shopify.oauth.iniciar');
+});
+
+// Shopify OAuth Callback (sin middleware de rol porque Shopify redirige aquí)
+Route::middleware(['auth'])->group(function () {
+    Route::get('/shopify/oauth/callback', [App\Http\Controllers\ShopifyOAuthController::class, 'handleCallback'])->name('shopify.oauth.callback');
 });
 
 // Rutas de Chat (compartidas entre admin y cliente)
@@ -132,6 +149,14 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::get('/solicitudes', [App\Http\Controllers\SolicitudController::class, 'index'])->name('solicitudes');
     Route::get('/solicitudes/{solicitud}', [App\Http\Controllers\SolicitudController::class, 'show'])->name('solicitudes.show');
     Route::post('/solicitudes/{solicitud}/estado', [App\Http\Controllers\SolicitudController::class, 'updateEstado'])->name('solicitudes.updateEstado');
+    
+    // Solicitudes Pendientes de Conexión (Admin)
+    Route::get('/solicitudes-pendientes-conexion', [App\Http\Controllers\SolicitudController::class, 'pendientesConexion'])->name('solicitudes.pendientes-conexion');
+    Route::post('/solicitudes/{solicitud}/conectar', [App\Http\Controllers\SolicitudController::class, 'conectarIntegracion'])->name('solicitudes.conectar');
+    Route::post('/solicitudes/{solicitud}/rechazar', [App\Http\Controllers\SolicitudController::class, 'rechazar'])->name('solicitudes.rechazar');
+    
+    // Suscripciones Admin
+    Route::get('/suscripciones', [App\Http\Controllers\SuscripcionController::class, 'admin'])->name('suscripciones');
 });
 
 // Flow Payment Routes

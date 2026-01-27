@@ -8,11 +8,11 @@ export default defineConfig({
             refresh: true,
         }),
     ],
-    /* server: {
+    server: {
         host: true,
         hmr: {
-            host: "https://unsimmering-entodermic-rosemarie.ngrok-free.dev",
+            host: "630824cc1694.ngrok-free.app",
             protocol: "wss",
         },
-    },*/
+    },
 });
