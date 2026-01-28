@@ -78,126 +78,196 @@
                                 </p>
                             </div>
                         @else
-                            <form action="{{ route('cliente.solicitudes.guardar-credenciales', $solicitud) }}" method="POST" class="space-y-4">
-                                @csrf
-                                @method('PUT')
+                            <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-4">
+                                <p class="text-sm text-blue-700">
+                                    <strong>✨ Nuevo:</strong> Conecta tu tienda con OAuth 2.0 en solo 2 clicks, o ingresa credenciales manualmente.
+                                </p>
+                            </div>
 
-                                <!-- Shopify Section -->
-                                <div class="border-t pt-4">
-                                    <h5 class="text-md font-bold text-indigo-600 mb-3">📦 Credenciales de Shopify</h5>
+                            <!-- FORMULARIO OAUTH (PRINCIPAL) -->
+                            <div class="bg-gradient-to-r from-indigo-50 to-purple-50 border-2 border-indigo-200 rounded-lg p-5 mb-6">
+                                <div class="flex items-center gap-2 mb-3">
+                                    <span class="text-2xl">🔗</span>
+                                    <h5 class="text-lg font-bold text-indigo-700">Conexión OAuth 2.0 (Recomendado)</h5>
+                                </div>
+                                <p class="text-sm text-gray-700 mb-4">
+                                    Autoriza tu tienda Shopify de forma segura sin copiar tokens manualmente.
+                                </p>
 
-                                    <div class="mb-4">
-                                        <label for="tienda_shopify_{{ $solicitud->id }}" class="block text-sm font-medium text-gray-700 mb-1">
-                                            Nombre de Tienda *
+                                <form action="{{ route('cliente.shopify.oauth.iniciar') }}" method="POST" class="space-y-4">
+                                    @csrf
+                                    <input type="hidden" name="solicitud_id" value="{{ $solicitud->id }}">
+
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                                            URL de tu tienda Shopify *
                                         </label>
                                         <input 
                                             type="text" 
-                                            id="tienda_shopify_{{ $solicitud->id }}"
-                                            name="tienda_shopify" 
-                                            value="{{ old('tienda_shopify', $solicitud->tienda_shopify) }}"
+                                            name="shop_url"
+                                            value="{{ old('shop_url', $solicitud->tienda_shopify) }}"
                                             placeholder="tu-tienda.myshopify.com"
-                                            pattern="[a-zA-Z0-9\-]+\.myshopify\.com"
+                                            pattern="[a-zA-Z0-9][a-zA-Z0-9\-]*\.myshopify\.com"
                                             required
                                             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                                         >
-                                        <p class="mt-1 text-xs text-gray-500">Formato: tu-tienda.myshopify.com</p>
-                                        @error('tienda_shopify')
-                                            <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
-                                        @enderror
+                                        <p class="mt-1 text-xs text-gray-500">Ejemplo: mi-tienda.myshopify.com</p>
                                     </div>
 
-                                    <div class="mb-4">
-                                        <label for="access_token_{{ $solicitud->id }}" class="block text-sm font-medium text-gray-700 mb-1">
-                                            Access Token *
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                                            Lioren API Key *
                                         </label>
                                         <input 
                                             type="password" 
-                                            id="access_token_{{ $solicitud->id }}"
-                                            name="access_token" 
-                                            value="{{ old('access_token', $solicitud->access_token) }}"
-                                            placeholder="shpat_xxxxxxxxxxxxx"
-                                            minlength="20"
-                                            required
-                                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                                        >
-                                        <p class="mt-1 text-xs text-gray-500">Token de API de tu app personalizada de Shopify</p>
-                                        @error('access_token')
-                                            <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
-                                        @enderror
-                                    </div>
-
-                                    <div class="mb-4">
-                                        <label for="api_secret_{{ $solicitud->id }}" class="block text-sm font-medium text-gray-700 mb-1">
-                                            API Secret (para webhooks) *
-                                        </label>
-                                        <input 
-                                            type="password" 
-                                            id="api_secret_{{ $solicitud->id }}"
-                                            name="api_secret" 
-                                            value="{{ old('api_secret', $solicitud->api_secret) }}"
-                                            placeholder="shpss_xxxxxxxxxxxxx"
-                                            minlength="20"
-                                            required
-                                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                                        >
-                                        <p class="mt-1 text-xs text-gray-500">Secret key para validar webhooks de Shopify</p>
-                                        @error('api_secret')
-                                            <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
-                                        @enderror
-                                    </div>
-                                </div>
-
-                                <!-- Lioren Section -->
-                                <div class="border-t pt-4">
-                                    <h5 class="text-md font-bold text-indigo-600 mb-3">🏪 Credenciales de Lioren</h5>
-
-                                    <div class="mb-4">
-                                        <label for="api_key_{{ $solicitud->id }}" class="block text-sm font-medium text-gray-700 mb-1">
-                                            API Key (Bearer Token) *
-                                        </label>
-                                        <input 
-                                            type="password" 
-                                            id="api_key_{{ $solicitud->id }}"
-                                            name="api_key" 
-                                            value="{{ old('api_key', $solicitud->api_key) }}"
-                                            placeholder="tu_api_key_de_lioren"
+                                            name="lioren_api_key"
+                                            value="{{ old('lioren_api_key', $solicitud->api_key) }}"
+                                            placeholder="Tu API Key de Lioren"
                                             minlength="10"
                                             required
                                             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                                         >
                                         <p class="mt-1 text-xs text-gray-500">Token de autenticación de la API de Lioren</p>
-                                        @error('api_key')
-                                            <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
-                                        @enderror
                                     </div>
 
-                                    <div class="mb-4">
-                                        <label for="telefono_{{ $solicitud->id }}" class="block text-sm font-medium text-gray-700 mb-1">
-                                            Teléfono de Contacto (opcional)
-                                        </label>
-                                        <input 
-                                            type="text" 
-                                            id="telefono_{{ $solicitud->id }}"
-                                            name="telefono" 
-                                            value="{{ old('telefono', $solicitud->telefono) }}"
-                                            placeholder="+56 9 1234 5678"
-                                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                                        >
-                                        @error('telefono')
-                                            <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
-                                        @enderror
-                                    </div>
-                                </div>
-
-                                <div class="flex justify-end pt-4">
                                     <button 
                                         type="submit"
-                                        class="px-6 py-3 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition"
+                                        class="w-full px-6 py-3 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition inline-flex items-center justify-center gap-2"
                                     >
-                                        💾 Guardar Credenciales
+                                        <span class="text-xl">🔗</span>
+                                        Conectar con Shopify OAuth
                                     </button>
+                                </form>
+                            </div>
+
+                            <!-- SEPARADOR -->
+                            <div class="relative my-6">
+                                <div class="absolute inset-0 flex items-center">
+                                    <div class="w-full border-t border-gray-300"></div>
                                 </div>
-                            </form>
+                                <div class="relative flex justify-center text-sm">
+                                    <span class="px-4 bg-white text-gray-500">o ingresa credenciales manualmente</span>
+                                </div>
+                            </div>
+
+                            <!-- FORMULARIO MANUAL (LEGACY) -->
+                            <details class="border border-gray-300 rounded-lg">
+                                <summary class="px-4 py-3 cursor-pointer hover:bg-gray-50 text-sm font-medium text-gray-700 flex items-center justify-between">
+                                    <span>📝 ¿Tienes credenciales de una Custom App antigua?</span>
+                                    <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                    </svg>
+                                </summary>
+
+                                <div class="px-4 pb-4 pt-2 border-t bg-gray-50">
+                                    <div class="bg-yellow-50 border border-yellow-200 rounded p-3 mb-4">
+                                        <p class="text-xs text-yellow-800">
+                                            ⚠️ <strong>Nota:</strong> Este método solo funciona con Custom Apps creadas antes de enero 2026. Para nuevas integraciones, usa OAuth arriba.
+                                        </p>
+                                    </div>
+
+                                    <form action="{{ route('cliente.solicitudes.guardar-credenciales', $solicitud) }}" method="POST" class="space-y-4">
+                                        @csrf
+                                        @method('PUT')
+
+                                        <!-- Shopify Section -->
+                                        <div class="border-t pt-4">
+                                            <h5 class="text-md font-bold text-indigo-600 mb-3">📦 Credenciales de Shopify</h5>
+
+                                            <div class="mb-4">
+                                                <label class="block text-sm font-medium text-gray-700 mb-1">
+                                                    Nombre de Tienda *
+                                                </label>
+                                                <input 
+                                                    type="text" 
+                                                    name="tienda_shopify"
+                                                    value="{{ old('tienda_shopify', $solicitud->tienda_shopify) }}"
+                                                    placeholder="tu-tienda.myshopify.com"
+                                                    pattern="[a-zA-Z0-9\-]+\.myshopify\.com"
+                                                    required
+                                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                                >
+                                                <p class="mt-1 text-xs text-gray-500">Formato: tu-tienda.myshopify.com</p>
+                                            </div>
+
+                                            <div class="mb-4">
+                                                <label class="block text-sm font-medium text-gray-700 mb-1">
+                                                    Access Token *
+                                                </label>
+                                                <input 
+                                                    type="password" 
+                                                    name="access_token"
+                                                    value="{{ old('access_token', $solicitud->access_token) }}"
+                                                    placeholder="shpat_xxxxxxxxxxxxx"
+                                                    minlength="20"
+                                                    required
+                                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                                >
+                                                <p class="mt-1 text-xs text-gray-500">Token de API de tu app personalizada de Shopify</p>
+                                            </div>
+
+                                            <div class="mb-4">
+                                                <label class="block text-sm font-medium text-gray-700 mb-1">
+                                                    API Secret (para webhooks) *
+                                                </label>
+                                                <input 
+                                                    type="password" 
+                                                    name="api_secret"
+                                                    value="{{ old('api_secret', $solicitud->api_secret) }}"
+                                                    placeholder="shpss_xxxxxxxxxxxxx"
+                                                    minlength="20"
+                                                    required
+                                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                                >
+                                                <p class="mt-1 text-xs text-gray-500">Secret key para validar webhooks de Shopify</p>
+                                            </div>
+                                        </div>
+
+                                        <!-- Lioren Section -->
+                                        <div class="border-t pt-4">
+                                            <h5 class="text-md font-bold text-indigo-600 mb-3">🏪 Credenciales de Lioren</h5>
+
+                                            <div class="mb-4">
+                                                <label class="block text-sm font-medium text-gray-700 mb-1">
+                                                    API Key (Bearer Token) *
+                                                </label>
+                                                <input 
+                                                    type="password" 
+                                                    name="api_key"
+                                                    value="{{ old('api_key', $solicitud->api_key) }}"
+                                                    placeholder="tu_api_key_de_lioren"
+                                                    minlength="10"
+                                                    required
+                                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                                >
+                                                <p class="mt-1 text-xs text-gray-500">Token de autenticación de la API de Lioren</p>
+                                            </div>
+
+                                            <div class="mb-4">
+                                                <label class="block text-sm font-medium text-gray-700 mb-1">
+                                                    Teléfono de Contacto (opcional)
+                                                </label>
+                                                <input 
+                                                    type="text" 
+                                                    name="telefono"
+                                                    value="{{ old('telefono', $solicitud->telefono) }}"
+                                                    placeholder="+56 9 1234 5678"
+                                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                                >
+                                            </div>
+                                        </div>
+
+                                        <div class="flex justify-end gap-4 pt-4 border-t border-gray-200">
+                                            <button 
+                                                type="submit"
+                                                class="px-6 py-2 bg-gray-600 text-white font-semibold rounded-lg hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition text-sm"
+                                            >
+                                                💾 Guardar Manualmente
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </details>
                         @endif
                     </div>
                 </div>
@@ -217,12 +287,13 @@
                 <div class="p-6">
                     <h4 class="text-lg font-bold text-gray-800 mb-3">❓ ¿Necesitas ayuda?</h4>
                     <div class="space-y-2 text-sm text-gray-600">
-                        <p><strong>Para obtener tus credenciales de Shopify:</strong></p>
+                        <p><strong>Método recomendado - OAuth 2.0:</strong></p>
                         <ol class="list-decimal list-inside ml-4 space-y-1">
-                            <li>Ve a tu panel de administración de Shopify</li>
-                            <li>Configuración → Apps y canales de venta → Desarrollar apps</li>
-                            <li>Crea una app personalizada con los permisos necesarios</li>
-                            <li>Copia el Access Token y el API Secret</li>
+                            <li>Ingresa la URL de tu tienda (ejemplo: mi-tienda.myshopify.com)</li>
+                            <li>Ingresa tu API Key de Lioren</li>
+                            <li>Haz clic en "Conectar con Shopify OAuth"</li>
+                            <li>Autoriza la app en Shopify</li>
+                            <li>¡Listo! La conexión se completará automáticamente</li>
                         </ol>
                         <p class="mt-3"><strong>Para obtener tu API Key de Lioren:</strong></p>
                         <ol class="list-decimal list-inside ml-4 space-y-1">
@@ -230,6 +301,9 @@
                             <li>Ve a Configuración → API</li>
                             <li>Copia tu Bearer Token</li>
                         </ol>
+                        <p class="mt-3 text-xs text-gray-500">
+                            <strong>Nota:</strong> El método manual solo está disponible para Custom Apps creadas antes de enero 2026.
+                        </p>
                     </div>
                 </div>
             </div>
