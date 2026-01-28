@@ -31,17 +31,63 @@ class IntegracionConfig extends Model
     ];
 
     protected $casts = [
-        'shopify_token' => 'encrypted',    // NUEVO - Encriptar credenciales
-        'shopify_secret' => 'encrypted',   // NUEVO - Encriptar credenciales
-        'lioren_api_key' => 'encrypted',   // NUEVO - Encriptar credenciales
         'facturacion_enabled' => 'boolean',
         'shopify_visibility_enabled' => 'boolean',
         'notas_credito_enabled' => 'boolean',
         'order_limit_enabled' => 'boolean',
         'activo' => 'boolean',
         'ultima_sincronizacion' => 'datetime',
-        'oauth_installed_at' => 'datetime', // NUEVO - OAuth 2.0
+        'oauth_installed_at' => 'datetime',
     ];
+
+    // Accessors y Mutators para encriptación segura que manejan valores vacíos
+    public function getShopifyTokenAttribute($value)
+    {
+        if (empty($value)) return null;
+        try {
+            return decrypt($value);
+        } catch (\Exception $e) {
+            \Log::error('Error desencriptando shopify_token: ' . $e->getMessage());
+            return null;
+        }
+    }
+
+    public function setShopifyTokenAttribute($value)
+    {
+        $this->attributes['shopify_token'] = $value ? encrypt($value) : null;
+    }
+
+    public function getShopifySecretAttribute($value)
+    {
+        if (empty($value)) return null;
+        try {
+            return decrypt($value);
+        } catch (\Exception $e) {
+            \Log::error('Error desencriptando shopify_secret: ' . $e->getMessage());
+            return null;
+        }
+    }
+
+    public function setShopifySecretAttribute($value)
+    {
+        $this->attributes['shopify_secret'] = $value ? encrypt($value) : null;
+    }
+
+    public function getLiorenApiKeyAttribute($value)
+    {
+        if (empty($value)) return null;
+        try {
+            return decrypt($value);
+        } catch (\Exception $e) {
+            \Log::error('Error desencriptando lioren_api_key: ' . $e->getMessage());
+            return null;
+        }
+    }
+
+    public function setLiorenApiKeyAttribute($value)
+    {
+        $this->attributes['lioren_api_key'] = $value ? encrypt($value) : null;
+    }
 
     public function user()
     {
