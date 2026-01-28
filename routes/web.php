@@ -123,6 +123,7 @@ Route::middleware(['auth', 'role:cliente'])->prefix('cliente')->name('cliente.')
     
     // Credenciales de Integración (Cliente)
     Route::get('/solicitudes/credenciales', [App\Http\Controllers\SolicitudController::class, 'credenciales'])->name('solicitudes.credenciales');
+    Route::get('/solicitudes/{solicitud}/credenciales', [App\Http\Controllers\SolicitudController::class, 'credenciales'])->name('solicitudes.credenciales-id');
     Route::put('/solicitudes/{solicitud}/credenciales', [App\Http\Controllers\SolicitudController::class, 'guardarCredenciales'])->name('solicitudes.guardar-credenciales');
     
     // Shopify OAuth 2.0 Routes
