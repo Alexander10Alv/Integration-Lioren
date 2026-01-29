@@ -149,6 +149,64 @@ class ConnectionLoader {
     }
 
     /**
+     * Muestra mensaje de éxito
+     */
+    showSuccess(message) {
+        if (!this.overlay) return;
+
+        const title = this.overlay.querySelector('.brosito-loader-title');
+        const subtitle = this.overlay.querySelector('.brosito-loader-subtitle');
+        const stepsContainer = this.overlay.querySelector('.brosito-loader-steps');
+
+        // Cambiar a mensaje de éxito
+        title.textContent = '✅ ¡Conexión Exitosa!';
+        subtitle.textContent = message || 'Sincronizando productos en segundo plano...';
+        
+        // Ocultar pasos
+        if (stepsContainer) {
+            stepsContainer.style.display = 'none';
+        }
+
+        // Detener cambio de animaciones pero mantener la actual
+        if (this.animationInterval) {
+            clearInterval(this.animationInterval);
+        }
+        if (this.stepInterval) {
+            clearInterval(this.stepInterval);
+        }
+    }
+
+    /**
+     * Muestra mensaje de error
+     */
+    showError(message) {
+        if (!this.overlay) return;
+
+        const title = this.overlay.querySelector('.brosito-loader-title');
+        const subtitle = this.overlay.querySelector('.brosito-loader-subtitle');
+        const stepsContainer = this.overlay.querySelector('.brosito-loader-steps');
+
+        // Cambiar a mensaje de error
+        title.textContent = '❌ Error de Conexión';
+        title.style.color = '#ef4444';
+        subtitle.textContent = message || 'Ocurrió un error al conectar';
+        subtitle.style.color = '#ef4444';
+        
+        // Ocultar pasos
+        if (stepsContainer) {
+            stepsContainer.style.display = 'none';
+        }
+
+        // Detener animaciones
+        if (this.animationInterval) {
+            clearInterval(this.animationInterval);
+        }
+        if (this.stepInterval) {
+            clearInterval(this.stepInterval);
+        }
+    }
+
+    /**
      * Oculta el loader
      */
     hide() {
@@ -199,4 +257,12 @@ window.showConnectionLoader = function() {
 
 window.hideConnectionLoader = function() {
     window.connectionLoader.hide();
+};
+
+window.showConnectionSuccess = function(message) {
+    window.connectionLoader.showSuccess(message);
+};
+
+window.showConnectionError = function(message) {
+    window.connectionLoader.showError(message);
 };

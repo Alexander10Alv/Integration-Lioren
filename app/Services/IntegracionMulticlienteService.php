@@ -73,20 +73,7 @@ class IntegracionMulticlienteService
 
             Log::info("✅ Webhooks creados", ['total' => count($webhooksCreados)]);
 
-            // 5. Sincronizar productos inicialmente
-            $syncService = new ProductSyncService(
-                $solicitud->cliente_id,
-                $solicitud->tienda_shopify,
-                $solicitud->access_token,
-                $solicitud->api_key
-            );
-
-            $syncResults = $syncService->initialBidirectionalSync();
-            $productosSincronizados = $syncResults['results']['total_synced'] ?? 0;
-
-            Log::info("✅ Productos sincronizados", ['total' => $productosSincronizados]);
-
-            // 6. Actualizar solicitud
+            // 5. Actualizar solicitud
             $solicitud->update([
                 'integracion_conectada' => true,
                 'fecha_conexion' => now(),
@@ -95,9 +82,14 @@ class IntegracionMulticlienteService
 
             DB::commit();
 
+            // 6. Lanzar sincronización en segundo plano
+            \App\Jobs\SincronizarIntegracionJob::dispatch($solicitud->id);
+
+            Log::info("✅ Job de sincronización lanzado");
+
             return [
                 'success' => true,
-                'message' => "✅ Integración conectada exitosamente. {$productosSincronizados} productos sincronizados.",
+                'message' => "✅ Integración conectada. Sincronizando productos en segundo plano...",
                 'data' => [
                     'config_id' => $integracionConfig->id,
                     'webhooks' => count($webhooksCreados),
@@ -159,21 +151,62 @@ class IntegracionMulticlienteService
                 'Accept' => 'application/json',
             ])->timeout(10)->get('https://www.lioren.cl/api/productos');
 
-            if ($response->status() === 200 || $response->status() === 201) {
+            $statusCode = $response->status();
+
+            // Validar respuestas específicas
+            if ($statusCode === 200 || $statusCode === 201) {
                 return [
                     'success' => true,
                     'message' => 'Conexión exitosa con Lioren'
                 ];
             }
 
+            if ($statusCode === 401) {
+                return [
+                    'success' => false,
+                    'message' => 'API Key inválido o expirado. Verifica tus credenciales de Lioren.'
+                ];
+            }
+
+            if ($statusCode === 403) {
+                return [
+                    'success' => false,
+                    'message' => 'API Key sin permisos suficientes. Contacta con Lioren para obtener los permisos necesarios.'
+                ];
+            }
+
+            if ($statusCode === 302) {
+                return [
+                    'success' => false,
+                    'message' => 'API Key requiere autenticación. Asegúrate de usar un Bearer Token válido.'
+                ];
+            }
+
             return [
                 'success' => false,
-                'message' => "API Key inválida (HTTP {$response->status()})"
+                'message' => "Error de conexión con Lioren (HTTP {$statusCode}). Verifica tus credenciales."
             ];
         } catch (\Exception $e) {
+            $errorMsg = $e->getMessage();
+            
+            // Detectar errores comunes
+            if (str_contains($errorMsg, 'Could not resolve host')) {
+                return [
+                    'success' => false,
+                    'message' => 'No se puede conectar con Lioren. Verifica tu conexión a internet.'
+                ];
+            }
+
+            if (str_contains($errorMsg, 'timeout')) {
+                return [
+                    'success' => false,
+                    'message' => 'Timeout al conectar con Lioren. El servidor no responde.'
+                ];
+            }
+
             return [
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Error de conexión: ' . $errorMsg
             ];
         }
     }

@@ -8,6 +8,9 @@
     <!-- Loader CSS y JS -->
     <link rel="stylesheet" href="{{ asset('css/admin-connection-loader.css') }}">
     <script src="{{ asset('js/admin-connection-loader.js') }}"></script>
+    
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <div class="py-12">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
@@ -264,16 +267,74 @@
 
         // Manejar submit del formulario de conexión
         function handleConectarSubmit(event) {
-            if (!confirm('¿Estás seguro de conectar esta integración? Se validarán las credenciales, crearán webhooks y sincronizarán productos.')) {
-                event.preventDefault();
-                return false;
-            }
+            event.preventDefault();
             
-            // Mostrar el loader animado
-            showConnectionLoader();
+            Swal.fire({
+                title: '¿Conectar integración?',
+                text: 'Se validarán las credenciales, crearán webhooks y sincronizarán productos.',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#3b82f6',
+                cancelButtonColor: '#6b7280',
+                confirmButtonText: 'Sí, conectar',
+                cancelButtonText: 'Cancelar'
+            }).then((result) => {
+                if (!result.isConfirmed) return;
+                
+                const form = event.target;
+                const formData = new FormData(form);
+                
+                // Mostrar el loader animado
+                showConnectionLoader();
+                
+                // Enviar petición AJAX
+                fetch(form.action, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Mostrar mensaje de éxito manteniendo la animación
+                        showConnectionSuccess(data.message);
+                        
+                        // Recargar después de 3 segundos
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 3000);
+                    } else {
+                        // Ocultar loader
+                        hideConnectionLoader();
+                        
+                        // Mostrar error con SweetAlert
+                        Swal.fire({
+                            title: '❌ Error de Conexión',
+                            html: data.message,
+                            icon: 'error',
+                            confirmButtonColor: '#ef4444',
+                            confirmButtonText: 'Entendido'
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    hideConnectionLoader();
+                    
+                    Swal.fire({
+                        title: '❌ Error',
+                        text: 'Error de conexión. Por favor intenta de nuevo.',
+                        icon: 'error',
+                        confirmButtonColor: '#ef4444',
+                        confirmButtonText: 'Entendido'
+                    });
+                });
+            });
             
-            // El formulario se enviará normalmente
-            return true;
+            return false;
         }
 
         // Si hay un mensaje de éxito o error, ocultar el loader

@@ -184,17 +184,27 @@ class SolicitudController extends Controller
         try {
             // Verificar que tiene credenciales
             if (!$solicitud->tieneCredencialesCompletas()) {
+                if (request()->wantsJson()) {
+                    return response()->json(['success' => false, 'message' => 'La solicitud no tiene credenciales completas'], 400);
+                }
                 return back()->with('error', 'La solicitud no tiene credenciales completas');
             }
 
             // Verificar que está en estado correcto
             if (!$solicitud->puedeConectar()) {
+                if (request()->wantsJson()) {
+                    return response()->json(['success' => false, 'message' => 'La solicitud no está en estado válido para conectar'], 400);
+                }
                 return back()->with('error', 'La solicitud no está en estado válido para conectar');
             }
 
             // Llamar al servicio de integración
             $integracionService = new \App\Services\IntegracionMulticlienteService();
             $result = $integracionService->conectarCliente($solicitud);
+
+            if (request()->wantsJson()) {
+                return response()->json($result);
+            }
 
             if ($result['success']) {
                 return redirect()->route('admin.solicitudes.pendientes-conexion')
@@ -205,6 +215,11 @@ class SolicitudController extends Controller
 
         } catch (\Exception $e) {
             \Log::error('Error conectando integración: ' . $e->getMessage());
+            
+            if (request()->wantsJson()) {
+                return response()->json(['success' => false, 'message' => 'Error al conectar: ' . $e->getMessage()], 500);
+            }
+            
             return back()->with('error', 'Error al conectar: ' . $e->getMessage());
         }
     }
