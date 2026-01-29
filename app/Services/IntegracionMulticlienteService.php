@@ -93,7 +93,6 @@ class IntegracionMulticlienteService
                 'data' => [
                     'config_id' => $integracionConfig->id,
                     'webhooks' => count($webhooksCreados),
-                    'productos' => $productosSincronizados,
                 ],
             ];
 
