@@ -69,9 +69,30 @@ class IntegracionMulticlienteService
             Log::info("✅ Configuración de integración creada", ['config_id' => $integracionConfig->id]);
 
             // 4. Crear webhooks en Shopify
-            $webhooksCreados = $this->crearWebhooks($solicitud, $integracionConfig);
+            $webhooksResult = $this->crearWebhooks($solicitud, $integracionConfig);
 
-            Log::info("✅ Webhooks creados", ['total' => count($webhooksCreados)]);
+            Log::info("📊 Resultado de webhooks", [
+                'exitosos' => $webhooksResult['exitosos'],
+                'fallidos' => $webhooksResult['fallidos'],
+                'total' => $webhooksResult['total']
+            ]);
+
+            // Verificar si hubo errores críticos en webhooks
+            if ($webhooksResult['fallidos'] > 0 && $webhooksResult['exitosos'] === 0) {
+                // Todos los webhooks fallaron - error crítico
+                DB::rollBack();
+                
+                $erroresDetalle = array_map(function($error) {
+                    return "{$error['nombre']}: {$error['error']}";
+                }, $webhooksResult['errores']);
+
+                return [
+                    'success' => false,
+                    'message' => 'Error crítico: No se pudo crear ningún webhook',
+                    'webhooks' => $webhooksResult,
+                    'errores_detalle' => $erroresDetalle
+                ];
+            }
 
             // 5. Actualizar solicitud
             $solicitud->update([
@@ -87,12 +108,20 @@ class IntegracionMulticlienteService
 
             Log::info("✅ Job de sincronización lanzado");
 
+            // Determinar mensaje según resultado de webhooks
+            $mensaje = "✅ Integración conectada exitosamente";
+            if ($webhooksResult['fallidos'] > 0) {
+                $mensaje .= " (⚠️ {$webhooksResult['fallidos']} webhook(s) fallaron)";
+            }
+
             return [
                 'success' => true,
-                'message' => "✅ Integración conectada. Sincronizando productos en segundo plano...",
+                'message' => $mensaje,
+                'webhooks' => $webhooksResult,
                 'data' => [
                     'config_id' => $integracionConfig->id,
-                    'webhooks' => count($webhooksCreados),
+                    'webhooks_exitosos' => $webhooksResult['exitosos'],
+                    'webhooks_fallidos' => $webhooksResult['fallidos'],
                 ],
             ];
 
@@ -231,12 +260,18 @@ class IntegracionMulticlienteService
         }
 
         $creados = [];
+        $errores = [];
 
         foreach ($webhooks as $webhook) {
             try {
                 // Agregar user_id al webhook URL para identificar al cliente
                 $urlCompleta = $webhookUrl . '?evento=' . str_replace('/', '_', $webhook['topic']) . '&user_id=' . $solicitud->cliente_id;
                 
+                Log::info("🔗 Intentando crear webhook: {$webhook['topic']}", [
+                    'url' => $urlCompleta,
+                    'tienda' => $solicitud->tienda_shopify
+                ]);
+
                 $response = Http::withHeaders([
                     'X-Shopify-Access-Token' => $solicitud->access_token,
                 ])->timeout(15)->post("https://{$solicitud->tienda_shopify}/admin/api/2024-01/webhooks.json", [
@@ -266,14 +301,45 @@ class IntegracionMulticlienteService
                         'success' => true
                     ];
                     
-                    Log::info("Webhook creado: {$webhook['topic']} para user_id: {$solicitud->cliente_id}");
+                    Log::info("✅ Webhook creado exitosamente: {$webhook['topic']}", [
+                        'webhook_id' => $result['webhook']['id'],
+                        'user_id' => $solicitud->cliente_id
+                    ]);
+                } else {
+                    $errorMsg = "HTTP {$response->status()}: " . ($response->json()['errors'] ?? $response->body());
+                    $errores[] = [
+                        'topic' => $webhook['topic'],
+                        'nombre' => $webhook['nombre'],
+                        'error' => $errorMsg,
+                        'success' => false
+                    ];
+                    
+                    Log::error("❌ Error creando webhook {$webhook['topic']}", [
+                        'status' => $response->status(),
+                        'response' => $response->body()
+                    ]);
                 }
             } catch (\Exception $e) {
-                Log::error("Error creando webhook {$webhook['topic']}: " . $e->getMessage());
+                $errores[] = [
+                    'topic' => $webhook['topic'],
+                    'nombre' => $webhook['nombre'],
+                    'error' => $e->getMessage(),
+                    'success' => false
+                ];
+                
+                Log::error("❌ Excepción creando webhook {$webhook['topic']}: " . $e->getMessage(), [
+                    'trace' => $e->getTraceAsString()
+                ]);
             }
         }
 
-        return $creados;
+        return [
+            'creados' => $creados,
+            'errores' => $errores,
+            'total' => count($webhooks),
+            'exitosos' => count($creados),
+            'fallidos' => count($errores)
+        ];
     }
 
     /**

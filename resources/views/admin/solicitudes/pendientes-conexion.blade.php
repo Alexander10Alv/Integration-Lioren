@@ -298,25 +298,112 @@
                 })
                 .then(response => response.json())
                 .then(data => {
+                    // Ocultar loader
+                    hideConnectionLoader();
+                    
                     if (data.success) {
-                        // Mostrar mensaje de éxito manteniendo la animación
-                        showConnectionSuccess(data.message);
+                        // Construir mensaje detallado de webhooks
+                        let webhooksHTML = '';
                         
-                        // Recargar después de 3 segundos
-                        setTimeout(() => {
+                        if (data.webhooks) {
+                            const { exitosos, fallidos, creados, errores } = data.webhooks;
+                            
+                            webhooksHTML = `
+                                <div style="text-align: left; margin-top: 15px;">
+                                    <p style="font-weight: bold; margin-bottom: 10px;">📊 Resumen de Webhooks:</p>
+                                    <div style="background: #f0fdf4; padding: 10px; border-radius: 8px; margin-bottom: 10px;">
+                                        <p style="color: #16a34a; margin: 5px 0;">✅ Exitosos: ${exitosos}</p>
+                                        ${fallidos > 0 ? `<p style="color: #dc2626; margin: 5px 0;">❌ Fallidos: ${fallidos}</p>` : ''}
+                                    </div>
+                            `;
+                            
+                            // Mostrar webhooks creados
+                            if (creados && creados.length > 0) {
+                                webhooksHTML += `
+                                    <div style="margin-top: 10px;">
+                                        <p style="font-size: 14px; font-weight: 600; color: #16a34a; margin-bottom: 5px;">Webhooks Creados:</p>
+                                        <ul style="font-size: 13px; color: #374151; list-style: none; padding-left: 0;">
+                                `;
+                                creados.forEach(webhook => {
+                                    webhooksHTML += `<li style="margin: 3px 0;">✓ ${webhook.nombre}</li>`;
+                                });
+                                webhooksHTML += `</ul></div>`;
+                            }
+                            
+                            // Mostrar errores si los hay
+                            if (errores && errores.length > 0) {
+                                webhooksHTML += `
+                                    <div style="margin-top: 10px; background: #fef2f2; padding: 10px; border-radius: 8px;">
+                                        <p style="font-size: 14px; font-weight: 600; color: #dc2626; margin-bottom: 5px;">Errores:</p>
+                                        <ul style="font-size: 12px; color: #991b1b; list-style: none; padding-left: 0;">
+                                `;
+                                errores.forEach(error => {
+                                    webhooksHTML += `<li style="margin: 5px 0;">✗ ${error.nombre}: ${error.error}</li>`;
+                                });
+                                webhooksHTML += `</ul></div>`;
+                            }
+                            
+                            webhooksHTML += `</div>`;
+                        }
+                        
+                        // Determinar icono y color según resultado
+                        const icon = data.webhooks && data.webhooks.fallidos > 0 ? 'warning' : 'success';
+                        const confirmButtonColor = data.webhooks && data.webhooks.fallidos > 0 ? '#f59e0b' : '#16a34a';
+                        
+                        Swal.fire({
+                            title: data.webhooks && data.webhooks.fallidos > 0 ? '⚠️ Conexión Parcial' : '✅ Conexión Exitosa',
+                            html: `
+                                <div style="text-align: center;">
+                                    <p style="margin-bottom: 10px;">${data.message}</p>
+                                    ${webhooksHTML}
+                                    <p style="margin-top: 15px; font-size: 14px; color: #6b7280;">
+                                        🔄 Sincronizando productos en segundo plano...
+                                    </p>
+                                </div>
+                            `,
+                            icon: icon,
+                            confirmButtonColor: confirmButtonColor,
+                            confirmButtonText: 'Entendido',
+                            width: '600px'
+                        }).then(() => {
                             window.location.reload();
-                        }, 3000);
+                        });
                     } else {
-                        // Ocultar loader
-                        hideConnectionLoader();
+                        // Construir mensaje de error detallado
+                        let errorHTML = `<p>${data.message}</p>`;
                         
-                        // Mostrar error con SweetAlert
+                        // Agregar detalles de webhooks si existen
+                        if (data.webhooks && data.webhooks.errores && data.webhooks.errores.length > 0) {
+                            errorHTML += `
+                                <div style="text-align: left; margin-top: 15px; background: #fef2f2; padding: 10px; border-radius: 8px;">
+                                    <p style="font-weight: bold; color: #dc2626; margin-bottom: 10px;">Errores de Webhooks:</p>
+                                    <ul style="font-size: 13px; color: #991b1b; list-style: none; padding-left: 0;">
+                            `;
+                            data.webhooks.errores.forEach(error => {
+                                errorHTML += `<li style="margin: 5px 0;">✗ ${error.nombre}: ${error.error}</li>`;
+                            });
+                            errorHTML += `</ul></div>`;
+                        }
+                        
+                        // Agregar errores detallados si existen
+                        if (data.errores_detalle && data.errores_detalle.length > 0) {
+                            errorHTML += `
+                                <div style="text-align: left; margin-top: 10px; font-size: 13px; color: #991b1b;">
+                                    <ul style="list-style: none; padding-left: 0;">
+                            `;
+                            data.errores_detalle.forEach(error => {
+                                errorHTML += `<li style="margin: 5px 0;">• ${error}</li>`;
+                            });
+                            errorHTML += `</ul></div>`;
+                        }
+                        
                         Swal.fire({
                             title: '❌ Error de Conexión',
-                            html: data.message,
+                            html: errorHTML,
                             icon: 'error',
                             confirmButtonColor: '#ef4444',
-                            confirmButtonText: 'Entendido'
+                            confirmButtonText: 'Entendido',
+                            width: '600px'
                         });
                     }
                 })
