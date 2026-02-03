@@ -110,8 +110,21 @@ foreach ($webhooks as $webhook) {
             echo "   ✅ Creado exitosamente (ID: {$result['webhook']['id']})\n";
             $creados++;
         } else {
-            $errorMsg = $response->json()['errors'] ?? $response->body();
-            echo "   ❌ Error: HTTP {$response->status()} - {$errorMsg}\n";
+            $errorData = $response->json();
+            $errorMsg = "HTTP {$response->status()}: ";
+            
+            // Manejar errores que pueden ser string o array
+            if (isset($errorData['errors'])) {
+                if (is_array($errorData['errors'])) {
+                    $errorMsg .= json_encode($errorData['errors']);
+                } else {
+                    $errorMsg .= $errorData['errors'];
+                }
+            } else {
+                $errorMsg .= $response->body();
+            }
+            
+            echo "   ❌ Error: {$errorMsg}\n";
             $errores++;
         }
     } catch (\Exception $e) {

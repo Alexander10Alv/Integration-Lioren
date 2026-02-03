@@ -306,7 +306,20 @@ class IntegracionMulticlienteService
                         'user_id' => $solicitud->cliente_id
                     ]);
                 } else {
-                    $errorMsg = "HTTP {$response->status()}: " . ($response->json()['errors'] ?? $response->body());
+                    $errorData = $response->json();
+                    $errorMsg = "HTTP {$response->status()}: ";
+                    
+                    // Manejar errores que pueden ser string o array
+                    if (isset($errorData['errors'])) {
+                        if (is_array($errorData['errors'])) {
+                            $errorMsg .= json_encode($errorData['errors']);
+                        } else {
+                            $errorMsg .= $errorData['errors'];
+                        }
+                    } else {
+                        $errorMsg .= $response->body();
+                    }
+                    
                     $errores[] = [
                         'topic' => $webhook['topic'],
                         'nombre' => $webhook['nombre'],
