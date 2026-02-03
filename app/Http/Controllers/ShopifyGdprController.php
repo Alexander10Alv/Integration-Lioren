@@ -31,9 +31,24 @@ class ShopifyGdprController extends Controller
      */
     public function customersDataRequest(Request $request)
     {
+        Log::info('🔔 GDPR Webhook recibido: customers/data_request', [
+            'ip' => $request->ip(),
+            'headers' => $request->headers->all(),
+            'body' => $request->getContent()
+        ]);
+
         // Verificar firma HMAC
-        if (!$this->verifyWebhook($request)) {
-            Log::warning('GDPR Webhook: Firma HMAC inválida', [
+        $isValid = $this->verifyWebhook($request);
+        
+        Log::info('🔐 Verificación HMAC', [
+            'webhook' => 'customers/data_request',
+            'hmac_valido' => $isValid ? 'SÍ' : 'NO',
+            'hmac_recibido' => $request->header('X-Shopify-Hmac-Sha256'),
+            'secret_configurado' => config('shopify.client_secret') ? 'SÍ' : 'NO'
+        ]);
+
+        if (!$isValid) {
+            Log::warning('❌ GDPR Webhook: Firma HMAC inválida', [
                 'webhook' => 'customers/data_request',
                 'ip' => $request->ip()
             ]);
@@ -42,7 +57,7 @@ class ShopifyGdprController extends Controller
 
         $data = $request->json()->all();
         
-        Log::info('GDPR: Solicitud de datos del cliente recibida', [
+        Log::info('✅ GDPR: Solicitud de datos del cliente recibida', [
             'shop_domain' => $data['shop_domain'] ?? null,
             'customer_id' => $data['customer']['id'] ?? null,
             'customer_email' => $data['customer']['email'] ?? null,
@@ -60,9 +75,24 @@ class ShopifyGdprController extends Controller
      */
     public function customersRedact(Request $request)
     {
+        Log::info('🔔 GDPR Webhook recibido: customers/redact', [
+            'ip' => $request->ip(),
+            'headers' => $request->headers->all(),
+            'body' => $request->getContent()
+        ]);
+
         // Verificar firma HMAC
-        if (!$this->verifyWebhook($request)) {
-            Log::warning('GDPR Webhook: Firma HMAC inválida', [
+        $isValid = $this->verifyWebhook($request);
+        
+        Log::info('🔐 Verificación HMAC', [
+            'webhook' => 'customers/redact',
+            'hmac_valido' => $isValid ? 'SÍ' : 'NO',
+            'hmac_recibido' => $request->header('X-Shopify-Hmac-Sha256'),
+            'secret_configurado' => config('shopify.client_secret') ? 'SÍ' : 'NO'
+        ]);
+
+        if (!$isValid) {
+            Log::warning('❌ GDPR Webhook: Firma HMAC inválida', [
                 'webhook' => 'customers/redact',
                 'ip' => $request->ip()
             ]);
@@ -71,7 +101,7 @@ class ShopifyGdprController extends Controller
 
         $data = $request->json()->all();
         
-        Log::info('GDPR: Solicitud de eliminación de datos del cliente', [
+        Log::info('✅ GDPR: Solicitud de eliminación de datos del cliente', [
             'shop_domain' => $data['shop_domain'] ?? null,
             'customer_id' => $data['customer']['id'] ?? null,
             'customer_email' => $data['customer']['email'] ?? null,
@@ -92,9 +122,24 @@ class ShopifyGdprController extends Controller
      */
     public function shopRedact(Request $request)
     {
+        Log::info('🔔 GDPR Webhook recibido: shop/redact', [
+            'ip' => $request->ip(),
+            'headers' => $request->headers->all(),
+            'body' => $request->getContent()
+        ]);
+
         // Verificar firma HMAC
-        if (!$this->verifyWebhook($request)) {
-            Log::warning('GDPR Webhook: Firma HMAC inválida', [
+        $isValid = $this->verifyWebhook($request);
+        
+        Log::info('🔐 Verificación HMAC', [
+            'webhook' => 'shop/redact',
+            'hmac_valido' => $isValid ? 'SÍ' : 'NO',
+            'hmac_recibido' => $request->header('X-Shopify-Hmac-Sha256'),
+            'secret_configurado' => config('shopify.client_secret') ? 'SÍ' : 'NO'
+        ]);
+
+        if (!$isValid) {
+            Log::warning('❌ GDPR Webhook: Firma HMAC inválida', [
                 'webhook' => 'shop/redact',
                 'ip' => $request->ip()
             ]);
@@ -103,7 +148,7 @@ class ShopifyGdprController extends Controller
 
         $data = $request->json()->all();
         
-        Log::info('GDPR: Solicitud de eliminación de datos de la tienda', [
+        Log::info('✅ GDPR: Solicitud de eliminación de datos de la tienda', [
             'shop_domain' => $data['shop_domain'] ?? null,
             'shop_id' => $data['shop_id'] ?? null,
         ]);
