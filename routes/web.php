@@ -287,6 +287,11 @@ Route::middleware('auth')->group(function () {
 // Webhook receiver - Public route (no auth required)
 Route::post('/integracion/webhook-receiver', [App\Http\Controllers\IntegracionController::class, 'webhookReceiver'])->name('integracion.webhook');
 
+// Shopify GDPR Webhooks - Public routes (no auth required)
+Route::post('/webhooks/customers/data_request', [App\Http\Controllers\ShopifyGdprController::class, 'customersDataRequest'])->name('webhooks.customers.data_request');
+Route::post('/webhooks/customers/redact', [App\Http\Controllers\ShopifyGdprController::class, 'customersRedact'])->name('webhooks.customers.redact');
+Route::post('/webhooks/shop/redact', [App\Http\Controllers\ShopifyGdprController::class, 'shopRedact'])->name('webhooks.shop.redact');
+
 require __DIR__ . '/auth.php';
 
 // Ruta de prueba temporal para Flow
