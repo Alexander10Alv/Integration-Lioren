@@ -15,5 +15,9 @@ class VerifyCsrfToken extends Middleware
         'integracion/webhook-receiver',
         'flow/return',
         'flow/confirmation',
+        // Shopify GDPR Webhooks
+        'webhooks/customers/data_request',
+        'webhooks/customers/redact',
+        'webhooks/shop/redact',
     ];
 }

@@ -1,10 +1,10 @@
-# Configuración mínima para registrar webhooks GDPR en Shopify Partners
-# Este archivo NO afecta la lógica de Laravel, solo mapea endpoints
+# Configuración para Shopify App - Lioren Integration
+# Este archivo registra webhooks GDPR obligatorios en Shopify Partners
 
 # Información básica de la app
 name = "Shopify-Lioren Integration"
-client_id = "TU_CLIENT_ID_AQUI"
-application_url = "https://shopify-integrator.lioren.cl"
+client_id = "cf23f58afb1a1a0ed5a02313cda893d4"
+application_url = "https://integration-conector.bigstudio.cl"
 embedded = false
 
 [access_scopes]
@@ -13,23 +13,16 @@ scopes = "read_products,write_products,read_orders,write_orders,read_customers,w
 
 [auth]
 redirect_urls = [
-  "https://shopify-integrator.lioren.cl/shopify/oauth/callback"
+  "https://integration-conector.bigstudio.cl/shopify/oauth/callback"
 ]
 
 [webhooks]
 api_version = "2024-01"
 
-# Webhooks GDPR Obligatorios
 [webhooks.privacy_compliance]
-
-  [[webhooks.privacy_compliance.customer_data_request]]
-  uri = "https://shopify-integrator.lioren.cl/webhooks/customers/data_request"
-
-  [[webhooks.privacy_compliance.customer_redact]]
-  uri = "https://shopify-integrator.lioren.cl/webhooks/customers/redact"
-
-  [[webhooks.privacy_compliance.shop_redact]]
-  uri = "https://shopify-integrator.lioren.cl/webhooks/shop/redact"
+customer_data_request_url = "https://integration-conector.bigstudio.cl/webhooks/customers/data_request"
+customer_deletion_url = "https://integration-conector.bigstudio.cl/webhooks/customers/redact"
+shop_deletion_url = "https://integration-conector.bigstudio.cl/webhooks/shop/redact"
 
 [pos]
 embedded = false
