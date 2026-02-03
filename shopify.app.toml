@@ -1,0 +1,35 @@
+# Configuración mínima para registrar webhooks GDPR en Shopify Partners
+# Este archivo NO afecta la lógica de Laravel, solo mapea endpoints
+
+# Información básica de la app
+name = "Shopify-Lioren Integration"
+client_id = "TU_CLIENT_ID_AQUI"
+application_url = "https://shopify-integrator.lioren.cl"
+embedded = false
+
+[access_scopes]
+# Scopes necesarios para la app
+scopes = "read_products,write_products,read_orders,write_orders,read_customers,write_customers,read_inventory,write_inventory,read_locations"
+
+[auth]
+redirect_urls = [
+  "https://shopify-integrator.lioren.cl/shopify/oauth/callback"
+]
+
+[webhooks]
+api_version = "2024-01"
+
+# Webhooks GDPR Obligatorios
+[webhooks.privacy_compliance]
+
+  [[webhooks.privacy_compliance.customer_data_request]]
+  uri = "https://shopify-integrator.lioren.cl/webhooks/customers/data_request"
+
+  [[webhooks.privacy_compliance.customer_redact]]
+  uri = "https://shopify-integrator.lioren.cl/webhooks/customers/redact"
+
+  [[webhooks.privacy_compliance.shop_redact]]
+  uri = "https://shopify-integrator.lioren.cl/webhooks/shop/redact"
+
+[pos]
+embedded = false
